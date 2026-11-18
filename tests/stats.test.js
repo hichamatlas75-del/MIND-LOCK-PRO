@@ -24,3 +24,22 @@ test('summarize : tableau de bord', () => {
   const s = summarize(p, { played: 4, wins: 2, losses: 2, streak: 2, bestStreak: 2 });
   assert.deepEqual(s, { completed: 2, percent: 2, bestTime: 30, rate: 50, streak: 2, currentLevel: 3 });
 });
+
+import { summarizeRewards } from '../src/game/stats.js';
+
+test('étoiles : plafonnement honnête selon les indices utilisés et seuils personnalisés', () => {
+  assert.equal(starsFor(4, 12, { hintsUsed: 0, thresholds: [6, 9] }), 3);
+  assert.equal(starsFor(4, 12, { hintsUsed: 1, thresholds: [6, 9] }), 2); // 1 indice -> plafonné à 2★
+  assert.equal(starsFor(4, 12, { hintsUsed: 2, thresholds: [6, 9] }), 1); // ≥2 indices -> plafonné à 1★
+  assert.equal(starsFor(8, 12, { hintsUsed: 0, thresholds: [6, 9] }), 2);
+  assert.equal(starsFor(10, 12, { hintsUsed: 0, thresholds: [6, 9] }), 1);
+});
+
+test('summarizeRewards : total d\'étoiles, niveaux 3★, victoires sans indice et répartition par palier', () => {
+  let p = defaultProgress();
+  p = recordWin(p, 1, { attempts: 4, time: 30, stars: 3, clean: true });
+  p = recordWin(p, 26, { attempts: 7, time: 50, stars: 2, clean: false });
+  p = recordWin(p, 76, { attempts: 6, time: 90, stars: 3, clean: true });
+  const r = summarizeRewards(p);
+  assert.deepEqual(r, { totalStars: 8, maxStars: 300, perfectLevels: 2, cleanLevels: 2, tierStars: [3, 2, 0, 3] });
+});

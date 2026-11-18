@@ -7,7 +7,7 @@
 - `sw.js` : cache-first hors ligne ; `manifest.webmanifest` : installation PWA
 Principe : le moteur n'a aucune dépendance DOM ; l'UI consomme le moteur via des modules ES.
 
-## UI (v0.3.1)
+## UI (v0.3.2)
 - `src/main.js` : routeur par hash (`#/home`, `#/levels`, `#/game/<n>`, `#/settings`)
 - `src/ui/screens/*` : un module par écran (`mountX(root, ctx)` retourne une fonction de nettoyage)
 - `src/ui/components.js`, `icons.js`, `styles.css` : composants, icônes SVG, design system (thèmes sombre/clair via variables CSS)

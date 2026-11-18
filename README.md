@@ -16,7 +16,7 @@ npm start      # http://localhost:8080
 npm test       # tests du moteur (Node ≥ 18)
 ```
 
-## Écrans (v0.3.1)
+## Écrans (v0.3.2)
 Accueil (profil, progression, statistiques) · Niveaux (4 catégories, étoiles, meilleurs temps) · Jeu (code masqué, pavé numérique, historique, pause, indice) · Paramètres (langue, thème, sons, vibrations, réinitialisation).
 Captures : [docs/screenshots](docs/screenshots). Test navigateur optionnel : `node scripts/e2e.mjs` (nécessite Chromium et `puppeteer-core`, non inclus dans les dépendances du projet).
 

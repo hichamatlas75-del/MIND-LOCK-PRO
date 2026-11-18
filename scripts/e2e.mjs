@@ -37,6 +37,27 @@ check('home : pas de débordement horizontal', (await overflow(p)) <= 0);
 check('home : 4 statistiques', (await p.$$('.stat')).length === 4);
 check('home : 25 cellules, 1 courante, 24 verrouillées', (await p.$$('.lv')).length === 25 && (await p.$$('.lv.current')).length === 1 && (await p.$$('.lv.locked')).length === 24);
 
+// tutoriel interactif (8 étapes, recommencer, passer)
+await click(p, '.tut-banner [data-a="tutorial"]'); await sleep(400);
+check('tutoriel : route /tutorial étape 1', (await hash(p)) === '#/tutorial');
+await shot(p, '17-tutorial-step1');
+await click(p, '[data-a="unlock"]'); await sleep(200);
+await click(p, '[data-choice="4271"]'); await sleep(200);
+await shot(p, '18-tutorial-step3');
+await type(p, [4, 7, 9, 0]); await click(p, '[data-a="submit"]'); await sleep(200);
+await click(p, '[data-choice="4"]'); await sleep(200);
+await click(p, '[data-choice="7"]'); await sleep(200);
+await click(p, '[data-choice="none"]'); await sleep(200);
+check('tutoriel : chiffres absents 6,8,9,0 marqués éliminés sur le clavier', await p.$eval('.key[data-d="6"]', e => e.classList.contains('eliminated')));
+await type(p, [4, 2, 7, 1]); await click(p, '[data-a="submit"]'); await sleep(200);
+await type(p, [8, 3, 5, 2]); await click(p, '[data-a="submit"]'); await sleep(500);
+await shot(p, '19-tutorial-done');
+check('tutoriel : 8 étapes validées et sauvegardées', !!(await p.$('.tut-done')) && await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:tutorial')).completed === true));
+await click(p, '.tut-done [data-a="restart"]'); await sleep(250);
+check('tutoriel : bouton recommencer remet à l\'étape 1', await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:tutorial')).step === 1));
+await click(p, '[data-a="skip"]'); await sleep(350);
+check('tutoriel : bouton passer ramène à l\'accueil', (await hash(p)) === '#/home' && await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:tutorial')).skipped === true));
+
 await click(p, '[data-a="levels"]'); await sleep(500); await shot(p, '02-levels');
 check('niveaux : route /levels', (await hash(p)) === '#/levels');
 for (const i of [1, 2, 3]) { await click(p, `[data-tier="${i}"]`); await sleep(150); }
@@ -58,12 +79,12 @@ await click(p, '[data-a="erase"]');
 let a = await active(p), secret = a.state.secret;
 const wrong = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(d => !secret.includes(d)).slice(0, 2).concat(secret.slice(0, 1), [secret[1]]);
 await type(p, wrong); await click(p, '[data-a="submit"]'); await sleep(700);
-check('jeu : tentative ajoutée à l\'historique', (await p.$$('.attempt')).length === 1);
+check('jeu : tentative ajoutée avec 3 indicateurs (✓, ⇄, ✕)', (await p.$$('.attempt')).length === 1 && (await p.$$('.attempt .pill')).length === 3);
 await click(p, '[data-a="hint"]'); await sleep(500);
 check('jeu : indice révèle un chiffre', (await p.$$('#secret .slot.hinted')).length === 1);
 await shot(p, '04-game-attempt-hint');
 await click(p, '[data-a="pause"]'); await sleep(400); await shot(p, '05-game-pause');
-check('jeu : pause affichée', !!(await p.$('.overlay.pause')));
+check('jeu : pause affichée et plateau masqué (is-paused)', !!(await p.$('.overlay.pause')) && !!(await p.$('.game.is-paused')));
 const t0 = await p.$eval('#timer', e => e.textContent); await sleep(1600);
 check('jeu : chronomètre arrêté en pause', t0 === await p.$eval('#timer', e => e.textContent));
 await click(p, '[data-a="resume"]');
@@ -127,7 +148,7 @@ check('localStorage corrompu : reprise propre sans erreur', (await hash(p)) === 
 await click(p, '[data-a="hint"]'); await sleep(200); // recrée une sauvegarde active pour la suite
 
 // accessibilité : tous les boutons/contrôles ont un nom accessible et un seul h1 par écran
-for (const r of ['home', 'levels', 'settings', 'game/2']) {
+for (const r of ['home', 'levels', 'settings', 'tutorial', 'game/2']) {
   await p.goto(`${BASE}/#/${r}`, { waitUntil: 'networkidle0' }); await sleep(300);
   const a11y = await p.evaluate(() => {
     const unnamed = [...document.querySelectorAll('button,select,input')].filter(el => !(el.getAttribute('aria-label') || el.textContent.trim() || el.labels?.length));
@@ -157,7 +178,7 @@ await click(p, '[data-a="lang"][data-v="ar"]'); await sleep(400);
 check('arabe : dir=rtl, lang=ar', await p.evaluate(() => document.documentElement.dir === 'rtl' && document.documentElement.lang === 'ar'));
 await shot(p, '11-settings-ar');
 await click(p, '[data-a="theme"][data-v="dark"]'); await sleep(300);
-for (const [r, n] of [['home', '12-home-ar'], ['levels', '13-levels-ar'], ['game/2', '14-game-ar']]) {
+for (const [r, n] of [['home', '12-home-ar'], ['levels', '13-levels-ar'], ['game/2', '14-game-ar'], ['tutorial', '20-tutorial-ar'], ['tutorial', '20-tutorial-ar']]) {
   await p.goto(`${BASE}/#/${r}`, { waitUntil: 'networkidle0' }); await sleep(1200);
   check(`arabe : ${r} sans débordement`, (await overflow(p)) <= 0); await shot(p, n);
 }
