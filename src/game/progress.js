@@ -22,7 +22,9 @@ export function sanitizeProgress(p) {
       if (!Number.isInteger(n) || n < 1 || n > TOTAL_LEVELS || !isObj(v)) continue;
       if (!Number.isFinite(v.time) || v.time < 0 || !Number.isFinite(v.attempts) || v.attempts < 1) continue;
       const stars = Number.isInteger(v.stars) ? Math.min(3, Math.max(0, v.stars)) : 0;
-      completed[n] = { attempts: v.attempts, time: v.time, stars };
+      const entry = { attempts: v.attempts, time: v.time, stars };
+      if (v.clean === true) entry.clean = true;
+      completed[n] = entry;
       maxDone = Math.max(maxDone, n);
     }
   }
@@ -34,10 +36,12 @@ export const saveProgress = p => storage.set('progress', p);
 export const isUnlocked = (p, n) => n >= 1 && n <= p.unlocked;
 
 /** Enregistre une victoire (garde le meilleur temps et le maximum d'étoiles) et débloque le niveau suivant. Pur. */
-export function recordWin(p, n, { attempts, time, stars = 0 }) {
+export function recordWin(p, n, { attempts, time, stars = 0, clean }) {
   const prev = p.completed[n];
-  const base = prev && prev.time <= time ? prev : { attempts, time };
-  const best = { ...base, stars: Math.max(prev?.stars ?? 0, stars) };
+  const bestTime = prev && prev.time <= time ? prev.time : time;
+  const bestAttempts = prev ? Math.min(prev.attempts, attempts) : attempts;
+  const best = { attempts: bestAttempts, time: bestTime, stars: Math.max(prev?.stars ?? 0, stars) };
+  if (clean || prev?.clean) best.clean = true;
   return {
     unlocked: Math.min(TOTAL_LEVELS, Math.max(p.unlocked, n + 1)),
     completed: { ...p.completed, [n]: best }
