@@ -2,7 +2,7 @@
 
 Jeu de réflexion et de déduction : découvrez le code secret. PWA installable (Android, iOS, Windows), 100% hors ligne.
 
-> **Statut : v0.1.0 – socle technique (aucun gameplay encore).**
+> **Statut : v0.2.0 – jeu fonctionnel (moteur, 100 niveaux, progression).**
 
 ## Stack
 HTML5 · CSS3 · JavaScript ES6+ (modules) · PWA · Service Worker · LocalStorage · Web Audio API — sans dépendances.

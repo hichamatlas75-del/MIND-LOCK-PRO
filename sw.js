@@ -1,10 +1,11 @@
 /* Service Worker – cache-first, fonctionnement hors ligne */
-const CACHE = 'mind-lock-pro-v0.1.0';
+const CACHE = 'mind-lock-pro-v0.2.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './src/main.js', './src/ui/styles.css',
   './src/core/config.js', './src/core/storage.js', './src/core/events.js',
-  './src/game/engine.js', './src/game/levels.js',
+  './src/game/engine.js', './src/game/levels.js', './src/game/progress.js',
+  './src/ui/game-view.js', './src/ui/menu-view.js',
   './src/services/audio.js', './src/services/theme.js',
   './src/i18n/index.js', './src/i18n/fr.js', './src/i18n/en.js', './src/i18n/ar.js',
   './public/icons/icon.svg', './public/icons/icon-maskable.svg'
