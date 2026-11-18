@@ -2,7 +2,7 @@ import { t, setLang, getLang, langs } from '../../i18n/index.js';
 import { icon } from '../icons.js';
 import { confirmDialog, toast, avatarInitial, esc } from '../components.js';
 import { applyTheme, getTheme } from '../../services/theme.js';
-import { getSettings, setSetting } from '../../core/settings.js';
+import { getSettings, setSetting, getVolume, setVolume } from '../../core/settings.js';
 import { hapticsSupported, vibrate } from '../../services/haptics.js';
 import { sfx } from '../../services/audio.js';
 import { APP } from '../../core/config.js';
@@ -11,7 +11,7 @@ const LANG_NAMES = { fr: 'Français', en: 'English', ar: 'العربية' };
 
 /** Paramètres : profil, langue, thème, sons, vibrations, réinitialisation, à propos. */
 export function mountSettings(root, ctx) {
-  const s = getSettings(), theme = getTheme(), vib = hapticsSupported();
+  const s = getSettings(), vol = getVolume(), theme = getTheme(), vib = hapticsSupported();
   const seg = (action, items, current) => `<div class="segmented" role="radiogroup">${items.map(([v, label]) =>
     `<button role="radio" aria-checked="${v === current}" class="${v === current ? 'active' : ''}" data-a="${action}" data-v="${v}">${label}</button>`).join('')}</div>`;
   const toggle = (key, ic, label, on, disabled = false, note = '') => `
@@ -43,6 +43,9 @@ export function mountSettings(root, ctx) {
       <h2 class="section-title">${t('audioHaptics')}</h2>
       <div class="card">
         ${toggle('sound', 'volume', t('sound'), s.sound)}
+        <div class="row-item"><span class="ri-ic">${icon('volume', 18)}</span>
+          <div class="ri-text"><label for="vol"><strong>${t('volume')} (<span id="vol-val">${vol}%</span>)</strong></label>
+          <input id="vol" class="range" type="range" min="0" max="100" step="5" value="${vol}" aria-label="${t('volume')}"></div></div>
         ${toggle('vibration', 'vibrate', t('vibration'), vib && s.vibration, !vib, vib ? '' : t('vibrationUnsupported'))}
       </div>
 
@@ -61,7 +64,10 @@ export function mountSettings(root, ctx) {
     </div>
   </main>`;
 
-  root.oninput = e => { if (e.target.id === 'pname') { setSetting('name', e.target.value); root.querySelector('.avatar.lg').innerHTML = avatarInitial(e.target.value) || icon('user', 22); } };
+  root.oninput = e => {
+    if (e.target.id === 'pname') { setSetting('name', e.target.value); root.querySelector('.avatar.lg').innerHTML = avatarInitial(e.target.value) || icon('user', 22); }
+    else if (e.target.id === 'vol') { setVolume(e.target.value); root.querySelector('#vol-val').textContent = getVolume() + '%'; sfx.digit(); }
+  };
   root.onclick = async e => {
     const b = e.target.closest('[data-a]'); if (!b) return;
     const a = b.dataset.a;

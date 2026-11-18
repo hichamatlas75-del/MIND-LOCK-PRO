@@ -8,6 +8,8 @@ import { mountLevels } from './ui/screens/levels.js';
 import { mountSettings } from './ui/screens/settings.js';
 import { mountGame } from './ui/screens/game.js';
 import { mountTutorial } from './ui/screens/tutorial.js';
+import { mountDaily } from './ui/screens/daily.js';
+import { mountStats } from './ui/screens/stats-view.js';
 import { confirmDialog, toast } from './ui/components.js';
 
 const root = document.getElementById('app');
@@ -46,6 +48,8 @@ async function render() {
     mount = r => mountGame(r, ctx, { n, fresh });
   }
   else if (name === 'tutorial') mount = r => mountTutorial(r, ctx);
+  else if (name === 'daily') mount = r => mountDaily(r, ctx);
+  else if (name === 'stats') mount = r => mountStats(r, ctx);
   else if (name === 'levels') mount = r => mountLevels(r, ctx);
   else if (name === 'settings') mount = r => mountSettings(r, ctx);
   else if (name === 'home') mount = r => mountHome(r, ctx);

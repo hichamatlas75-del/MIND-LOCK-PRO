@@ -148,7 +148,7 @@ check('localStorage corrompu : reprise propre sans erreur', (await hash(p)) === 
 await click(p, '[data-a="hint"]'); await sleep(200); // recrée une sauvegarde active pour la suite
 
 // accessibilité : tous les boutons/contrôles ont un nom accessible et un seul h1 par écran
-for (const r of ['home', 'levels', 'settings', 'tutorial', 'game/2']) {
+for (const r of ['home', 'levels', 'settings', 'tutorial', 'daily', 'stats', 'game/2']) {
   await p.goto(`${BASE}/#/${r}`, { waitUntil: 'networkidle0' }); await sleep(300);
   const a11y = await p.evaluate(() => {
     const unnamed = [...document.querySelectorAll('button,select,input')].filter(el => !(el.getAttribute('aria-label') || el.textContent.trim() || el.labels?.length));
@@ -156,6 +156,26 @@ for (const r of ['home', 'levels', 'settings', 'tutorial', 'game/2']) {
   });
   check(`accessibilité ${r} : 1 titre h1 et tous les contrôles nommés`, a11y.h1 === 1 && a11y.unnamed === 0, JSON.stringify(a11y));
 }
+
+// Défi Quotidien (#/daily) : participation unique, calendrier 14 jours, partage emoji sans fuite du secret
+await p.goto(`${BASE}/#/daily`, { waitUntil: 'networkidle0' }); await sleep(500);
+await shot(p, '21-daily-play');
+check('daily : route /daily avec 5 emplacements secrets masqués', (await hash(p)) === '#/daily' && (await p.$$('#secret .slot.masked')).length === 5);
+const dailySecret = await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:daily'))?.active?.state?.secret);
+check('daily : code secret quotidien déterministe de 5 chiffres distincts', Array.isArray(dailySecret) && dailySecret.length === 5 && new Set(dailySecret).size === 5);
+await type(p, dailySecret); await click(p, '[data-a="submit"]'); await sleep(1900);
+await shot(p, '22-daily-done');
+check('daily : défi terminé, calendrier 14 jours et bouton partage affichés', !!(await p.$('[data-a="share"]')) && (await p.$$('.cal-day')).length === 14 && (await p.$$('.cal-day.won')).length === 1);
+check('daily : rechargement le même jour conserve l\'état terminé (pas de seconde participation)', (await p.reload({ waitUntil: 'networkidle0' }), await sleep(400), !!(await p.$('[data-a="share"]')) && !(await p.$('.keypad'))));
+
+// Tableau de bord Profil & Statistiques (#/stats)
+await p.goto(`${BASE}/#/stats`, { waitUntil: 'networkidle0' }); await sleep(500);
+await shot(p, '23-stats-dashboard');
+check('stats : 8 cartes statistiques + 4 barres de progression par catégorie', (await p.$$('.stats .stat')).length === 8 && (await p.$$('.cat-row')).length === 4);
+check('stats : défis quotidiens gagnés = 1', await p.evaluate(() => document.body.innerText.includes('1')));
+
+// retour sur game/2 pour le test de défaite
+await p.goto(`${BASE}/#/game/2`, { waitUntil: 'networkidle0' }); await sleep(350);
 
 // défaite (12 tentatives au niveau 2)
 a = await active(p); const sec2 = a.state.secret;
@@ -166,8 +186,14 @@ check('défaite : feuille de résultat + secret révélé', !!(await p.$('.resul
 await click(p, '[data-a="retry"]'); await sleep(400);
 check('défaite : recommencer remet à zéro', (await p.$$('.attempt')).length === 0);
 
-// paramètres, thème, langues
+// paramètres, volume audio, thème, langues
 await p.goto(BASE + '/#/settings', { waitUntil: 'networkidle0' }); await sleep(500); await shot(p, '08-settings');
+await p.evaluate(() => {
+  const r = document.querySelector('#vol');
+  r.value = '45';
+  r.dispatchEvent(new Event('input', { bubbles: true }));
+});
+check('audio : curseur de volume met à jour LocalStorage (45%)', await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:volume')) === 45 && document.querySelector('#vol-val').textContent === '45%'));
 await p.type('#pname', 'Hicham'); 
 await click(p, '[data-a="theme"][data-v="light"]'); await sleep(500); await shot(p, '09-settings-light');
 check('thème clair appliqué', await p.evaluate(() => document.documentElement.dataset.theme === 'light'));
@@ -178,11 +204,11 @@ await click(p, '[data-a="lang"][data-v="ar"]'); await sleep(400);
 check('arabe : dir=rtl, lang=ar', await p.evaluate(() => document.documentElement.dir === 'rtl' && document.documentElement.lang === 'ar'));
 await shot(p, '11-settings-ar');
 await click(p, '[data-a="theme"][data-v="dark"]'); await sleep(300);
-for (const [r, n] of [['home', '12-home-ar'], ['levels', '13-levels-ar'], ['game/2', '14-game-ar'], ['tutorial', '20-tutorial-ar'], ['tutorial', '20-tutorial-ar']]) {
+for (const [r, n] of [['home', '12-home-ar'], ['levels', '13-levels-ar'], ['game/2', '14-game-ar'], ['tutorial', '20-tutorial-ar'], ['daily', '24-daily-ar'], ['stats', '25-stats-ar']]) {
   await p.goto(`${BASE}/#/${r}`, { waitUntil: 'networkidle0' }); await sleep(1200);
   check(`arabe : ${r} sans débordement`, (await overflow(p)) <= 0); await shot(p, n);
 }
-check('arabe : pas de texte non traduit (clés brutes)', !(await p.evaluate(() => /\b(continue_|welcomeName|emptyHistory|resetDesc)\b/.test(document.body.innerText))));
+check('arabe : pas de texte non traduit (clés brutes)', !(await p.evaluate(() => /\b(continue_|welcomeName|emptyHistory|resetDesc|dailyTitle|statsTitle)\b/.test(document.body.innerText))));
 await p.goto(`${BASE}/#/settings`, { waitUntil: 'networkidle0' });
 await click(p, '[data-a="lang"][data-v="fr"]'); await sleep(300);
 
@@ -204,12 +230,12 @@ await p.setOfflineMode(true); await p.reload({ waitUntil: 'load' }); await sleep
 check('hors ligne : l\'application se charge', (await p.$$('.hero')).length === 1);
 await p.setOfflineMode(false);
 
-// responsive
-for (const [name, w, h, mob] of [['android-small', 320, 568, true], ['android-large', 412, 915, true], ['iphone', 390, 844, true], ['tablet', 820, 1180, true], ['desktop', 1366, 768, false]]) {
+// responsive (320x568, 360x800, 390x844, 412x915, 820x1180, 1366x768)
+for (const [name, w, h, mob] of [['android-small', 320, 568, true], ['android-mid', 360, 800, true], ['android-large', 412, 915, true], ['iphone', 390, 844, true], ['tablet', 820, 1180, true], ['desktop', 1366, 768, false]]) {
   const q = await newPage(w, h, mob);
   await q.goto(BASE + '/#/home', { waitUntil: 'networkidle0' }); await q.evaluate(() => { localStorage.clear(); });
-  for (const [route, label] of [['home', 'home'], ['levels', 'levels'], ['settings', 'settings'], ['game/1', 'game']]) {
-    await q.goto(`${BASE}/#/${route}`, { waitUntil: 'networkidle0' }); await q.reload({ waitUntil: 'networkidle0' }); await sleep(900);
+  for (const [route, label] of [['home', 'home'], ['levels', 'levels'], ['settings', 'settings'], ['daily', 'daily'], ['stats', 'stats'], ['game/1', 'game']]) {
+    await q.goto(`${BASE}/#/${route}`, { waitUntil: 'networkidle0' }); await q.reload({ waitUntil: 'networkidle0' }); await sleep(800);
     check(`${name} ${w}x${h} : ${label} sans débordement`, (await overflow(q)) <= 0);
     if (label === 'game') {
       check(`${name} : clavier entièrement visible`, await q.evaluate(() => document.querySelector('.keypad').getBoundingClientRect().bottom <= innerHeight + 1));

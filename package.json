@@ -1,6 +1,6 @@
 {
   "name": "mind-lock-pro",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "MIND LOCK PRO – jeu de réflexion et de déduction (PWA hors-ligne)",
   "private": true,
   "type": "module",

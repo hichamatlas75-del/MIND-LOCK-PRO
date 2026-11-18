@@ -17,7 +17,7 @@ export function mountLevels(root, ctx) {
   const diff = DIFFICULTY_ORDER[tier], rules = getLevel(first);
   const doneInTier = Object.keys(progress.completed).filter(n => n >= first && n <= last).length;
   const tabs = DIFFICULTY_ORDER.map((d, i) => `<button role="tab" class="tab d-${d} ${i === tier ? 'active' : ''}" data-tier="${i}" aria-selected="${i === tier}">${t(d)}</button>`).join('');
-  const cells = Array.from({ length: LEVELS_PER_TIER }, (_, i) => levelCell(first + i, progress, { current: cur, detail: true })).join('');
+  const cells = Array.from({ length: LEVELS_PER_TIER }, (_, i) => levelCell(first + i, progress, { current: cur, detail: true, justUnlocked: ctx.session.lastUnlockedLevel })).join('');
 
   root.innerHTML = `
   <main class="screen levels">
