@@ -1,0 +1,152 @@
+/**
+ * Test E2E navigateur (optionnel, hors `npm test`) : parcours complet, captures, débordements, erreurs JS, hors-ligne.
+ * Prérequis : serveur sur http://localhost:8080 (`npm start`), Chromium, et `puppeteer-core` installé
+ * (ex. `NODE_PATH=/tmp/pt/node_modules`). Usage : node scripts/e2e.mjs [dossier-captures]
+ */
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+const require = createRequire(import.meta.url);
+const puppeteer = require(process.env.PUPPETEER_PATH || 'puppeteer-core');
+const OUT = process.argv[2] || '/tmp/shots', BASE = process.env.BASE || 'http://localhost:8080';
+fs.mkdirSync(OUT, { recursive: true });
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const results = []; const errors = [];
+const check = (name, ok, info = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name} ${info}`); };
+
+const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/chromium', headless: 'new', args: ['--no-sandbox'] });
+async function newPage(w, h, mobile = true) {
+  const p = await browser.newPage();
+  await p.setViewport({ width: w, height: h, deviceScaleFactor: 2, isMobile: mobile, hasTouch: mobile });
+  p.on('pageerror', e => errors.push('pageerror: ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  return p;
+}
+const shot = (p, name) => p.screenshot({ path: `${OUT}/${name}.png` });
+const overflow = p => p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+const click = (p, sel) => p.$eval(sel, el => el.click());
+const active = p => p.evaluate(() => JSON.parse(localStorage.getItem('mlp:active')));
+const type = async (p, digits) => { for (const d of digits) { await click(p, `.key[data-d="${d}"]`); } };
+const hash = p => p.evaluate(() => location.hash);
+
+const p = await newPage(390, 844);
+await p.goto(BASE + '/#/home', { waitUntil: 'networkidle0' });
+await p.evaluate(() => { localStorage.clear(); }); await p.reload({ waitUntil: 'networkidle0' });
+await sleep(1300); await shot(p, '01-home-dark');
+check('home : pas de débordement horizontal', (await overflow(p)) <= 0);
+check('home : 4 statistiques', (await p.$$('.stat')).length === 4);
+check('home : 25 cellules, 1 courante, 24 verrouillées', (await p.$$('.lv')).length === 25 && (await p.$$('.lv.current')).length === 1 && (await p.$$('.lv.locked')).length === 24);
+
+await click(p, '[data-a="levels"]'); await sleep(500); await shot(p, '02-levels');
+check('niveaux : route /levels', (await hash(p)) === '#/levels');
+for (const i of [1, 2, 3]) { await click(p, `[data-tier="${i}"]`); await sleep(150); }
+check('niveaux : 4 onglets, grille de 25', (await p.$$('.tab')).length === 4 && (await p.$$('.lv')).length === 25);
+check('niveaux : verrouillés désactivés', (await p.$$eval('.lv.locked', els => els.every(e => e.disabled))));
+await click(p, '[data-tier="0"]'); await sleep(150);
+
+await click(p, '.lv.current'); await sleep(600);
+check('jeu : route /game/1', (await hash(p)) === '#/game/1');
+await shot(p, '03-game-empty');
+check('jeu : 4 emplacements secrets masqués', (await p.$$('#secret .slot.masked')).length === 4);
+await type(p, [1, 1]);
+check('jeu : doublon interdit => chiffre 1 désactivé', await p.$eval('.key[data-d="1"]', e => e.disabled));
+await click(p, '[data-a="erase"]');
+await click(p, '[data-a="submit"]');
+let msg = await p.$eval('#msg', e => e.textContent); check('jeu : validation incomplète refusée', msg.length > 0 || await p.$eval('[data-a="submit"]', e => e.disabled));
+await click(p, '[data-a="erase"]');
+
+let a = await active(p), secret = a.state.secret;
+const wrong = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(d => !secret.includes(d)).slice(0, 2).concat(secret.slice(0, 1), [secret[1]]);
+await type(p, wrong); await click(p, '[data-a="submit"]'); await sleep(700);
+check('jeu : tentative ajoutée à l\'historique', (await p.$$('.attempt')).length === 1);
+await click(p, '[data-a="hint"]'); await sleep(500);
+check('jeu : indice révèle un chiffre', (await p.$$('#secret .slot.hinted')).length === 1);
+await shot(p, '04-game-attempt-hint');
+await click(p, '[data-a="pause"]'); await sleep(400); await shot(p, '05-game-pause');
+check('jeu : pause affichée', !!(await p.$('.overlay.pause')));
+const t0 = await p.$eval('#timer', e => e.textContent); await sleep(1600);
+check('jeu : chronomètre arrêté en pause', t0 === await p.$eval('#timer', e => e.textContent));
+await click(p, '[data-a="resume"]');
+check('jeu : clavier visible dans le viewport', await p.evaluate(() => document.querySelector('.keypad').getBoundingClientRect().bottom <= innerHeight));
+check('jeu : pas de débordement horizontal', (await overflow(p)) <= 0);
+
+// sauvegarde / reprise
+await p.reload({ waitUntil: 'networkidle0' }); await sleep(500);
+check('sauvegarde : partie reprise après rechargement', (await p.$$('.attempt')).length === 1 && (await p.$$('#secret .slot.hinted')).length === 1);
+
+// victoire
+a = await active(p); await type(p, a.state.secret); await click(p, '[data-a="submit"]'); await sleep(2400);
+await shot(p, '06-win');
+check('victoire : feuille de résultat + étoiles', !!(await p.$('.result.win')) && (await p.$$('.result .stars .on')).length >= 1);
+check('victoire : niveau 2 débloqué', await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:progress')).unlocked === 2));
+check('victoire : stats enregistrées', await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mlp:stats')); return s.wins === 1 && s.streak === 1; }));
+await click(p, '[data-a="next"]'); await sleep(600);
+check('transition : niveau suivant', (await hash(p)) === '#/game/2');
+
+// défaite (12 tentatives au niveau 2)
+a = await active(p); const sec2 = a.state.secret;
+const bad = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter(d => !sec2.includes(d)).slice(0, 4);
+for (let i = 0; i < a.state.rules.maxAttempts; i++) { await type(p, bad); await click(p, '[data-a="submit"]'); }
+await sleep(2200); await shot(p, '07-lose');
+check('défaite : feuille de résultat + secret révélé', !!(await p.$('.result.lose')) && (await p.$$('#secret .slot.revealed')).length === sec2.length);
+await click(p, '[data-a="retry"]'); await sleep(400);
+check('défaite : recommencer remet à zéro', (await p.$$('.attempt')).length === 0);
+
+// paramètres, thème, langues
+await p.goto(BASE + '/#/settings', { waitUntil: 'networkidle0' }); await sleep(500); await shot(p, '08-settings');
+await p.type('#pname', 'Hicham'); 
+await click(p, '[data-a="theme"][data-v="light"]'); await sleep(500); await shot(p, '09-settings-light');
+check('thème clair appliqué', await p.evaluate(() => document.documentElement.dataset.theme === 'light'));
+await p.goto(BASE + '/#/home', { waitUntil: 'networkidle0' }); await sleep(1200); await shot(p, '10-home-light');
+check('profil : nom affiché sur l\'accueil', (await p.$eval('.eyebrow', e => e.textContent)).includes('Hicham'));
+await click(p, '[data-a="settings"]'); await sleep(300);
+await click(p, '[data-a="lang"][data-v="ar"]'); await sleep(400);
+check('arabe : dir=rtl, lang=ar', await p.evaluate(() => document.documentElement.dir === 'rtl' && document.documentElement.lang === 'ar'));
+await shot(p, '11-settings-ar');
+await click(p, '[data-a="theme"][data-v="dark"]'); await sleep(300);
+for (const [r, n] of [['home', '12-home-ar'], ['levels', '13-levels-ar'], ['game/2', '14-game-ar']]) {
+  await p.goto(`${BASE}/#/${r}`, { waitUntil: 'networkidle0' }); await sleep(1200);
+  check(`arabe : ${r} sans débordement`, (await overflow(p)) <= 0); await shot(p, n);
+}
+check('arabe : pas de texte non traduit (clés brutes)', !(await p.evaluate(() => /\b(continue_|welcomeName|emptyHistory|resetDesc)\b/.test(document.body.innerText))));
+await p.goto(`${BASE}/#/settings`, { waitUntil: 'networkidle0' });
+await click(p, '[data-a="lang"][data-v="fr"]'); await sleep(300);
+
+// réinitialisation avec confirmation
+await click(p, '[data-a="reset"]'); await sleep(300); await shot(p, '15-reset-confirm');
+await p.$eval('.modal [data-r="0"]', e => e.click()); await sleep(200);
+check('réinitialisation : annulation conserve la progression', await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:progress')).unlocked === 2));
+await click(p, '[data-a="reset"]'); await sleep(200); await p.$eval('.modal [data-r="1"]', e => e.click()); await sleep(300);
+check('réinitialisation : confirmation efface la progression', await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:progress')).unlocked === 1));
+
+// accès niveau verrouillé par URL
+await p.goto(`${BASE}/#/game/50`, { waitUntil: 'networkidle0' }); await sleep(400);
+check('niveau verrouillé : accès direct refusé (retour accueil)', (await hash(p)) === '#/home');
+
+// hors ligne
+await p.goto(BASE + '/#/home', { waitUntil: 'networkidle0' }); await sleep(1500);
+await p.evaluate(() => navigator.serviceWorker.ready); await sleep(1000);
+await p.setOfflineMode(true); await p.reload({ waitUntil: 'load' }); await sleep(800);
+check('hors ligne : l\'application se charge', (await p.$$('.hero')).length === 1);
+await p.setOfflineMode(false);
+
+// responsive
+for (const [name, w, h, mob] of [['android-small', 320, 568, true], ['android-large', 412, 915, true], ['iphone', 390, 844, true], ['tablet', 820, 1180, true], ['desktop', 1366, 768, false]]) {
+  const q = await newPage(w, h, mob);
+  await q.goto(BASE + '/#/home', { waitUntil: 'networkidle0' }); await q.evaluate(() => { localStorage.clear(); });
+  for (const [route, label] of [['home', 'home'], ['levels', 'levels'], ['settings', 'settings'], ['game/1', 'game']]) {
+    await q.goto(`${BASE}/#/${route}`, { waitUntil: 'networkidle0' }); await q.reload({ waitUntil: 'networkidle0' }); await sleep(900);
+    check(`${name} ${w}x${h} : ${label} sans débordement`, (await overflow(q)) <= 0);
+    if (label === 'game') {
+      check(`${name} : clavier entièrement visible`, await q.evaluate(() => document.querySelector('.keypad').getBoundingClientRect().bottom <= innerHeight + 1));
+      await shot(q, `r-${name}-game`);
+    }
+    if (label === 'home' && name !== 'iphone') await shot(q, `r-${name}-home`);
+  }
+  await q.close();
+}
+
+check('aucune erreur JavaScript / console', errors.length === 0, errors.join(' | '));
+const failed = results.filter(r => !r.ok).length;
+console.log(`\n${results.length - failed}/${results.length} vérifications réussies`);
+await browser.close(); process.exit(failed ? 1 : 0);
