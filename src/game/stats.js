@@ -1,5 +1,5 @@
 import { storage } from '../core/storage.js';
-import { TOTAL_LEVELS, LEVELS_PER_TIER } from '../core/config.js';
+import { TOTAL_LEVELS, LEVELS_PER_TIER, DIFFICULTY_ORDER } from '../core/config.js';
 
 /** Statistiques globales : { played, wins, losses, streak, bestStreak } */
 export const defaultStats = () => ({ played: 0, wins: 0, losses: 0, streak: 0, bestStreak: 0 });
@@ -63,4 +63,51 @@ export function summarizeRewards(progress) {
     }
   }
   return { totalStars, maxStars: TOTAL_LEVELS * 3, perfectLevels, cleanLevels, tierStars };
+}
+
+/**
+ * Tableau de bord complet Profil & Statistiques (Axe 5 — 9 indicateurs + progression par catégorie).
+ * Pur et rétrocompatible avec les sauvegardes existantes.
+ */
+export function summarizeDashboard(progress, stats, daily = null) {
+  const base = summarize(progress, stats);
+  const rewards = summarizeRewards(progress);
+  const completedEntries = Object.values(progress.completed || {});
+  const times = completedEntries.map(c => c.time).filter(t => Number.isFinite(t) && t >= 0);
+  const dailyWins = daily?.totalWins ?? 0;
+  const dailyPlayed = daily?.totalPlayed ?? 0;
+  const totalGames = stats.played + dailyPlayed;
+  const totalWins = stats.wins + dailyWins;
+  const rate = totalGames ? Math.round((totalWins / totalGames) * 100) : 0;
+  const avgTime = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
+  const categories = DIFFICULTY_ORDER.map((key, tier) => {
+    const first = tier * LEVELS_PER_TIER + 1, last = first + LEVELS_PER_TIER - 1;
+    const done = Object.keys(progress.completed || {}).map(Number).filter(n => n >= first && n <= last).length;
+    return {
+      key,
+      first,
+      last,
+      completed: done,
+      total: LEVELS_PER_TIER,
+      percent: Math.round((done / LEVELS_PER_TIER) * 100),
+      stars: rewards.tierStars[tier],
+      maxStars: LEVELS_PER_TIER * 3
+    };
+  });
+  return {
+    totalGames,
+    rate,
+    avgTime,
+    bestTime: base.bestTime,
+    totalStars: rewards.totalStars,
+    maxStars: rewards.maxStars,
+    completedLevels: base.completed,
+    totalLevels: TOTAL_LEVELS,
+    winStreak: stats.streak,
+    bestStreak: stats.bestStreak,
+    dailyWins,
+    dailyStreak: daily?.streak ?? 0,
+    bestDailyStreak: daily?.bestStreak ?? 0,
+    categories
+  };
 }

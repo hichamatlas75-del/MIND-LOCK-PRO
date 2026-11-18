@@ -133,17 +133,17 @@ export function mountGame(root, ctx, { n, fresh }) {
   /* ---------- actions ---------- */
   function press(d) {
     if (!playing() || input.length >= rules.codeLength || (!rules.allowRepeats && input.includes(d))) return;
-    input.push(d); setMsg(''); sfx.tap(); vibrate(8); persist();
+    input.push(d); setMsg(''); sfx.digit(); vibrate(8); persist();
     renderEntry(input.length - 1); renderKeys();
   }
-  function erase() { if (!playing() || !input.length) return; input.pop(); setMsg(''); sfx.tap(); persist(); renderEntry(); renderKeys(); }
+  function erase() { if (!playing() || !input.length) return; input.pop(); setMsg(''); sfx.click(); persist(); renderEntry(); renderKeys(); }
   function submit() {
     if (!playing()) return;
     const r = submitGuess(state, input);
-    if (r.error) { setMsg(t(r.error)); shake($('#entry')); sfx.error(); vibrate([30, 40, 30]); return; }
+    if (r.error) { setMsg(t(r.error)); shake($('#entry')); sfx.invalid(); vibrate([30, 40, 30]); return; }
     state = r.state; input = []; setMsg('');
     const last = state.guesses.at(-1);
-    last.exact ? sfx.good() : sfx.neutral(); vibrate(15);
+    last.exact ? sfx.hint() : sfx.submit(); vibrate(15);
     renderEntry(); renderHistory(true); renderPips(); renderKeys();
     if (state.status !== 'playing') finish(); else persist();
   }
@@ -178,19 +178,20 @@ export function mountGame(root, ctx, { n, fresh }) {
   function finish() {
     const won = state.status === 'won';
     persist(); renderSecret();
-    let res = { stars: 0, clean: false, hintCapped: false, newBest: false };
+    let res = { stars: 0, clean: false, hintCapped: false, newBest: false, unlockedNewLevel: null };
     if (won) {
       res = ctx.session.win(n, {
         attempts: state.guesses.length, time: elapsed, maxAttempts: rules.maxAttempts,
         hintsUsed: state.hintsUsed.length, thresholds: rules.starThresholds
       });
-      sfx.win(); vibrate([20, 60, 20, 60, 40]);
+      sfx.win(); if (res.unlockedNewLevel) setTimeout(() => sfx.unlock(), 450); vibrate([20, 60, 20, 60, 40]);
     } else { ctx.session.loss(); sfx.lose(); vibrate([80, 40, 80]); shake($('#secret')); }
     root.querySelector('.game').classList.add(won ? 'is-won' : 'is-lost');
     const [s3] = rules.starThresholds;
     const rewardBadges = !won ? '' : [
       res.clean ? `<span class="badge d-beginner">${icon('check', 12)} ${t('noHintBadge')}</span>` : '',
-      res.newBest ? `<span class="badge d-master">${icon('trophy', 12)} ${t('newBest')}</span>` : ''
+      res.newBest ? `<span class="badge d-master">${icon('trophy', 12)} ${t('newBest')}</span>` : '',
+      res.unlockedNewLevel ? `<span class="badge d-normal unlock-pop">${icon('unlock', 12)} ${t('levelUnlockedBadge', { n: res.unlockedNewLevel })}</span>` : ''
     ].filter(Boolean).join(' ');
     const rewardNote = !won ? ''
       : res.hintCapped ? `<small class="muted">${t('hintCapNote', { n: res.stars })}</small>`
@@ -220,7 +221,7 @@ export function mountGame(root, ctx, { n, fresh }) {
     const slot = e.target.closest('[data-slot]');
     if (slot && playing()) {
       const idx = +slot.dataset.slot;
-      if (idx < input.length) { input = input.slice(0, idx); setMsg(''); sfx.tap(); persist(); renderEntry(); renderKeys(); }
+      if (idx < input.length) { input = input.slice(0, idx); setMsg(''); sfx.click(); persist(); renderEntry(); renderKeys(); }
       return;
     }
     const k = e.target.closest('button'); if (!k) return;

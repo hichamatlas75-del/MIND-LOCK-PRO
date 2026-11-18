@@ -22,10 +22,10 @@ export const avatarInitial = name => (name?.trim()[0] || '').toUpperCase();
 /**
  * Cellule de niveau : état verrouillé / courant / terminé (étoiles, meilleur temps si detail).
  */
-export function levelCell(n, progress, { current, detail = false } = {}) {
+export function levelCell(n, progress, { current, detail = false, justUnlocked = null } = {}) {
   const open = n <= progress.unlocked, done = progress.completed[n];
   const d = getLevel(n).difficulty;
-  const state = done ? 'done' : !open ? 'locked' : n === current ? 'current' : 'open';
+  const state = (done ? 'done' : !open ? 'locked' : n === current ? 'current' : 'open') + (n === justUnlocked ? ' just-unlocked' : '');
   const body = !open ? icon('lock', 16)
     : `<span class="num">${n}</span>${done ? stars(done.stars || 1, 9) + (detail ? `<small>${fmtTime(done.time)}</small>` : '') : ''}`;
   return `<button class="lv ${state} d-${d}" data-lv="${n}" ${open ? '' : 'disabled'}

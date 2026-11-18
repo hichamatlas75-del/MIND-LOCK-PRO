@@ -1,4 +1,4 @@
-export const APP = { name: 'MIND LOCK PRO', version: '0.3.2', storagePrefix: 'mlp:' };
+export const APP = { name: 'MIND LOCK PRO', version: '0.4.0', storagePrefix: 'mlp:' };
 export const TOTAL_LEVELS = 100;
 export const LEVELS_PER_TIER = 25;
 export const DIGITS = 10; // chiffres 0-9
@@ -17,4 +17,18 @@ export const DIFFICULTIES = {
   master:   { codeLength: 6, baseAttempts: 12, minAttempts: 9, stepEvery: 7,  hints: 1, lateHints: 0, hintsDropAt: 10, repeatsFrom: 0,  basePar: 200, parStep: 3 }
 };
 export const DIFFICULTY_ORDER = ['beginner', 'normal', 'expert', 'master'];
+
+/** Règles fixes et documentées du Défi Quotidien : 5 chiffres sans doublons (30 240 codes), 9 tentatives, 1 indice. */
+export const DAILY_RULES = Object.freeze({
+  number: 0,
+  difficulty: 'expert',
+  codeLength: 5,
+  digits: DIGITS,
+  allowRepeats: false,
+  maxAttempts: 9,
+  hints: 1,
+  parTime: 150,
+  starThresholds: [5, 7]
+});
+
 export const LANGS = { fr: 'ltr', en: 'ltr', ar: 'rtl' };

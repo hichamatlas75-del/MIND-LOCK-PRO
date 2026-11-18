@@ -26,10 +26,13 @@ const P = {
   info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
   globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
   home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
-  help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+  chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
 };
 export function icon(name, size = 20, cls = '', fill = false) {
   return `<svg class="ic ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${P[name]}</svg>`;
 }
 /** Marque MIND LOCK : cadenas dégradé violet → cyan. */
-export const logoMark = (size = 30) => `<svg class="logo-mark" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8157FF"/><stop offset="1" stop-color="#21D4FD"/></linearGradient></defs><rect x="9" y="21" width="30" height="21" rx="6" fill="url(#lg)"/><path d="M15 21v-5a9 9 0 0 1 18 0v5" fill="none" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="30.5" r="3" fill="#090B16"/><rect x="22.6" y="32" width="2.8" height="5" rx="1.4" fill="#090B16"/></svg>`;
+export const logoMark = (size = 30) => `<svg class="logo-mark" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B6BFF"/><stop offset="1" stop-color="#00F0FF"/></linearGradient></defs><rect x="9" y="21" width="30" height="21" rx="6" fill="url(#lg)"/><path d="M15 21v-5a9 9 0 0 1 18 0v5" fill="none" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="30.5" r="3" fill="#090B16"/><rect x="22.6" y="32" width="2.8" height="5" rx="1.4" fill="#090B16"/></svg>`;
