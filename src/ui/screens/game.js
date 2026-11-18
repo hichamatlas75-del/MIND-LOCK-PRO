@@ -1,16 +1,16 @@
 import { t } from '../../i18n/index.js';
 import { icon } from '../icons.js';
-import { esc, fmtTime, stars, diffBadge, confirmDialog, confetti } from '../components.js';
-import { getLevel } from '../../game/levels.js';
+import { fmtTime, stars, diffBadge, confirmDialog, confetti } from '../components.js';
+import { getLevel, deduceEliminatedDigits } from '../../game/levels.js';
 import { createGame, submitGuess, useHint, hintsLeft } from '../../game/engine.js';
-import { saveActive, loadActive, clearActive, hasProgress } from '../../game/progress.js';
+import { saveActive, loadActive, clearActive } from '../../game/progress.js';
 import { sfx } from '../../services/audio.js';
 import { vibrate } from '../../services/haptics.js';
 import { TOTAL_LEVELS } from '../../core/config.js';
 
 /**
- * Écran de jeu. Toute la logique de jeu passe par le moteur (engine.js) ;
- * cet écran ne fait que piloter l'interface et la persistance.
+ * Écran de jeu. Toute la logique de jeu passe par le moteur (`engine.js`) ;
+ * cet écran pilote l'interface, les aides visuelles de déduction et la persistance.
  */
 export function mountGame(root, ctx, { n, fresh }) {
   const rules = getLevel(n);
@@ -32,6 +32,7 @@ export function mountGame(root, ctx, { n, fresh }) {
       <div class="title"><strong>${t('level')} ${n}</strong>
         ${diffBadge(rules.difficulty, ` · ${t('digitsCount', { n: rules.codeLength })}`)}</div>
       <div class="timer-pill">${icon('clock', 15)}<span id="timer">${fmtTime(elapsed)}</span></div>
+      <button class="icon-btn" data-a="tutorial" aria-label="${t('tutorial')}">${icon('help', 18)}</button>
       <button class="icon-btn" data-a="pause" aria-label="${t('pause')}">${icon('pause', 18)}</button>
     </header>
     <div class="board">
@@ -40,6 +41,11 @@ export function mountGame(root, ctx, { n, fresh }) {
           <span class="muted">${t(rules.allowRepeats ? 'repeatsOn' : 'repeatsOff')}</span></div>
         <div class="secret-slots" id="secret"></div>
         <div class="pips" id="pips" aria-label="${t('attempts')}"></div>
+        <div class="legend" aria-label="${t('legend')}">
+          <span class="pill ok">${icon('check', 11)} ${t('placed')}</span>
+          <span class="pill mid"><i class="swap">⇄</i> ${t('misplaced')}</span>
+          <span class="pill abs">${icon('x', 11)} ${t('absent')}</span>
+        </div>
       </div>
       <div class="history" id="history" aria-live="polite"></div>
     </div>
@@ -70,25 +76,36 @@ export function mountGame(root, ctx, { n, fresh }) {
   const renderPips = () => { $('#pips').innerHTML = Array.from({ length: rules.maxAttempts }, (_, i) =>
     `<i class="${i < state.guesses.length ? 'used' : ''}"></i>`).join('') + `<span>${state.guesses.length}/${rules.maxAttempts}</span>`; };
   function renderEntry(popIdx = -1) {
-    $('#entry').innerHTML = Array.from({ length: rules.codeLength }, (_, i) =>
-      `<span class="slot entry-slot ${input[i] !== undefined ? 'filled' : ''} ${i === input.length ? 'next' : ''} ${i === popIdx ? 'pop' : ''}">${input[i] ?? ''}</span>`).join('');
+    const hinted = new Map(state.hintsUsed.map(h => [h.pos, h.digit]));
+    $('#entry').innerHTML = Array.from({ length: rules.codeLength }, (_, i) => {
+      const has = input[i] !== undefined;
+      const ghost = !has && hinted.has(i) ? `<em class="ghost" aria-hidden="true">${hinted.get(i)}</em>` : '';
+      return `<span class="slot entry-slot ${has ? 'filled' : ''} ${i === input.length ? 'next' : ''} ${i === popIdx ? 'pop' : ''}" data-slot="${i}">${has ? input[i] : ghost}</span>`;
+    }).join('');
   }
   function renderHistory(animateLast = false) {
     const h = $('#history');
     if (!state.guesses.length) { h.innerHTML = `<div class="empty">${icon('grid', 26)}<p>${t('emptyHistory')}</p></div>`; return; }
-    h.innerHTML = state.guesses.map((g, i) => `
-      <div class="attempt ${animateLast && i === state.guesses.length - 1 ? 'new' : ''}">
+    h.innerHTML = state.guesses.map((g, i) => {
+      const abs = rules.codeLength - g.exact - g.misplaced;
+      return `<div class="attempt ${animateLast && i === state.guesses.length - 1 ? 'new' : ''}">
         <span class="idx">${i + 1}</span>
         <span class="digits">${g.guess.map((d, k) => `<b style="--k:${k}">${d}</b>`).join('')}</span>
-        <span class="fb"><span class="pill ok" title="${t('placed')}" aria-label="${g.exact} ${t('placed')}">${icon('check', 12)}${g.exact}</span>
-          <span class="pill mid" title="${t('misplaced')}" aria-label="${g.misplaced} ${t('misplaced')}"><i class="swap">⇄</i>${g.misplaced}</span></span>
-      </div>`).join('');
+        <span class="fb">
+          <span class="pill ok" title="${t('placed')}" aria-label="${g.exact} ${t('placed')}">${icon('check', 12)}${g.exact}</span>
+          <span class="pill mid" title="${t('misplaced')}" aria-label="${g.misplaced} ${t('misplaced')}"><i class="swap">⇄</i>${g.misplaced}</span>
+          <span class="pill abs" title="${t('absent')}" aria-label="${abs} ${t('absent')}">${icon('x', 11)}${abs}</span>
+        </span>
+      </div>`;
+    }).join('');
     h.scrollTop = h.scrollHeight;
   }
   function renderKeys() {
     const full = input.length >= rules.codeLength, on = playing();
+    const elim = deduceEliminatedDigits(state.guesses);
     root.querySelectorAll('.key[data-d]').forEach(k => {
       const d = +k.dataset.d;
+      k.classList.toggle('eliminated', elim.has(d));
       k.disabled = !on || full || (!rules.allowRepeats && input.includes(d)); // chiffres interdits
     });
     $('[data-a="erase"]').disabled = !on || !input.length;
@@ -100,7 +117,7 @@ export function mountGame(root, ctx, { n, fresh }) {
   const shake = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
   const renderAll = () => { renderSecret(); renderPips(); renderEntry(); renderHistory(); renderKeys(); setMsg(''); };
 
-  /** Sauvegarde automatique : partie, chronomètre, indices ET saisie en cours. Rien à protéger → pas de sauvegarde. */
+  /** Sauvegarde automatique : partie, chronomètre, indices ET saisie en cours. */
   const persist = () => {
     const snap = { level: n, state, elapsed, input };
     if (state.status === 'playing') saveActive(snap); else clearActive();
@@ -134,21 +151,25 @@ export function mountGame(root, ctx, { n, fresh }) {
     const r = useHint(state);
     if (r.error) { setMsg(t(r.error)); return; }
     state = r.state; sfx.hint(); vibrate(20);
-    renderSecret(r.hint.pos); renderKeys(); persist();
+    renderSecret(r.hint.pos); renderEntry(); renderKeys(); persist();
   }
   async function restart() {
     if (state.guesses.length && !(await confirmDialog({ title: t('restartTitle'), text: t('restartText') }))) return;
     clearTimeout(resultTimer);
     state = createGame(rules); elapsed = 0; input = []; paused = false;
+    root.querySelector('.game').classList.remove('is-paused', 'is-won', 'is-lost');
     $('#overlay').innerHTML = ''; $('#timer').textContent = fmtTime(0);
-    persist(); persist(); renderAll();
+    persist(); renderAll();
   }
   function pause(on) {
     if (state.status !== 'playing') return;
-    paused = on; renderKeys();
+    paused = on;
+    root.querySelector('.game').classList.toggle('is-paused', on);
+    renderKeys();
     $('#overlay').innerHTML = on ? `<div class="overlay pause"><div class="sheet center" role="dialog" aria-modal="true" aria-label="${t('paused')}">
       <div class="badge-ic">${icon('pause', 26)}</div><h2>${t('paused')}</h2>
       <p class="muted">${t('level')} ${n} · ${fmtTime(elapsed)}</p>
+      <small class="muted">${t('pausedHidden')}</small>
       <button class="btn primary lg" data-a="resume">${icon('play', 18, '', true)}<span>${t('resumeGame')}</span></button>
       <button class="btn ghost" data-a="back">${t('quit')}</button></div></div>` : '';
     if (on) { persist(); $('[data-a="resume"]')?.focus(); }
@@ -157,20 +178,33 @@ export function mountGame(root, ctx, { n, fresh }) {
   function finish() {
     const won = state.status === 'won';
     persist(); renderSecret();
-    let res = { stars: 0 };
-    if (won) { res = ctx.session.win(n, { attempts: state.guesses.length, time: elapsed, maxAttempts: rules.maxAttempts }); sfx.win(); vibrate([20, 60, 20, 60, 40]); }
-    else { ctx.session.loss(); sfx.lose(); vibrate([80, 40, 80]); shake($('#secret')); }
+    let res = { stars: 0, clean: false, hintCapped: false, newBest: false };
+    if (won) {
+      res = ctx.session.win(n, {
+        attempts: state.guesses.length, time: elapsed, maxAttempts: rules.maxAttempts,
+        hintsUsed: state.hintsUsed.length, thresholds: rules.starThresholds
+      });
+      sfx.win(); vibrate([20, 60, 20, 60, 40]);
+    } else { ctx.session.loss(); sfx.lose(); vibrate([80, 40, 80]); shake($('#secret')); }
     root.querySelector('.game').classList.add(won ? 'is-won' : 'is-lost');
+    const [s3] = rules.starThresholds;
+    const rewardBadges = !won ? '' : [
+      res.clean ? `<span class="badge d-beginner">${icon('check', 12)} ${t('noHintBadge')}</span>` : '',
+      res.newBest ? `<span class="badge d-master">${icon('trophy', 12)} ${t('newBest')}</span>` : ''
+    ].filter(Boolean).join(' ');
+    const rewardNote = !won ? ''
+      : res.hintCapped ? `<small class="muted">${t('hintCapNote', { n: res.stars })}</small>`
+      : res.stars < 3 ? `<small class="muted">${t('starGoal3', { n: s3 })}</small>` : '';
     resultTimer = setTimeout(() => {
       $('#overlay').innerHTML = `<div class="overlay result ${won ? 'win' : 'lose'}">
         ${won ? '<div class="confetti" id="confetti" aria-hidden="true"></div>' : ''}
         <div class="sheet center" role="dialog" aria-modal="true" aria-label="${t(won ? 'won' : 'lost')}">
           <div class="badge-ic ${won ? 'win' : 'lose'}">${icon(won ? 'unlock' : 'x', 28)}</div>
           <h2>${t(won ? 'won' : 'lost')}</h2>
-          ${won ? `${stars(res.stars, 26)}${res.newBest ? `<span class="badge d-master">${icon('trophy', 12)} ${t('newBest')}</span>` : ''}`
+          ${won ? `${stars(res.stars, 26)}${rewardBadges ? `<div class="reward-badges">${rewardBadges}</div>` : ''}${rewardNote}`
                 : `<p class="muted">${t('codeWas')} <b class="code">${state.secret.join(' ')}</b></p>`}
           <div class="result-stats">
-            <div>${icon('clock', 16)}<strong>${fmtTime(elapsed)}</strong><span>${t('time')}</span></div>
+            <div>${icon('clock', 16)}<strong>${fmtTime(elapsed)}</strong><span>${t('time')} (${t('parTimeLabel')} ${fmtTime(rules.parTime)})</span></div>
             <div>${icon('target', 16)}<strong>${state.guesses.length}/${rules.maxAttempts}</strong><span>${t('attempts')}</span></div>
           </div>
           ${won && n < TOTAL_LEVELS ? `<button class="btn primary lg" data-a="next">${t('next')}</button>` : ''}
@@ -183,10 +217,17 @@ export function mountGame(root, ctx, { n, fresh }) {
   }
 
   root.onclick = e => {
+    const slot = e.target.closest('[data-slot]');
+    if (slot && playing()) {
+      const idx = +slot.dataset.slot;
+      if (idx < input.length) { input = input.slice(0, idx); setMsg(''); sfx.tap(); persist(); renderEntry(); renderKeys(); }
+      return;
+    }
     const k = e.target.closest('button'); if (!k) return;
     if (k.dataset.d !== undefined) return press(+k.dataset.d);
     ({ erase, submit, hint, restart,
        pause: () => pause(true), resume: () => pause(false),
+       tutorial: () => { persist(); ctx.go('/tutorial'); },
        back: () => { persist(); ctx.go('/levels'); }, levels: () => ctx.go('/levels'),
        next: () => ctx.go(`/game/${n + 1}`, { fresh: true }),
        retry: () => { $('#overlay').innerHTML = ''; root.querySelector('.game').classList.remove('is-won', 'is-lost'); state = createGame(rules); elapsed = 0; input = []; persist(); renderAll(); $('#timer').textContent = fmtTime(0); }
@@ -196,17 +237,17 @@ export function mountGame(root, ctx, { n, fresh }) {
     if (document.querySelector('.modal')) return;
     if (/^\d$/.test(e.key)) press(+e.key);
     else if (e.key === 'Backspace') erase();
-    else if (e.key === 'Enter') { if (!e.target.closest?.('button')) submit(); } // Entrée sur un bouton = clic natif (évite le double envoi)
+    else if (e.key === 'Enter') { if (!e.target.closest?.('button')) submit(); }
     else if (e.key === 'Escape') pause(!paused);
   };
   const onVis = () => { if (document.hidden && playing()) pause(true); };
   document.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', onVis);
-  window.addEventListener('pagehide', persist); // dernière sauvegarde avant fermeture/actualisation
+  window.addEventListener('pagehide', persist);
 
-  renderAll();
+  persist(); renderAll();
   return () => {
-    persist(); // quitter l'écran (retour, navigation) conserve la partie
+    persist();
     clearInterval(tick); clearTimeout(resultTimer);
     document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onVis);
     window.removeEventListener('pagehide', persist); root.onclick = null;

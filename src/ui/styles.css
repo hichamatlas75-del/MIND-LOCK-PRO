@@ -244,3 +244,32 @@ html[lang="ar"] .key.go{text-transform:none;letter-spacing:0}
 .keypad,.entry,.secret-slots,.digits,.code,.pips{direction:ltr}
 
 .sr-only{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ---- Phase 3.2 : légende, absents, pause anti-triche, récompenses & tutoriel ---- */
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.hero-top .eyebrow{margin-bottom:0}
+.star-pill{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:.82rem;font-variant-numeric:tabular-nums}
+.star-pill .on{color:#F5B93A}[data-theme="light"] .star-pill .on{color:#D9930B}
+.star-pill small{color:var(--muted)}
+.tier-metrics{display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums}
+.tier-metrics span{display:inline-flex;align-items:center;gap:4px;font-size:.85rem;color:var(--muted)}
+.tier-metrics .on{color:#F5B93A}[data-theme="light"] .tier-metrics .on{color:#D9930B}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:8px}
+.legend .pill{font-size:.72rem;font-weight:700;padding:3px 9px;min-width:0}
+.pill.abs{background:color-mix(in srgb,var(--muted) 18%,transparent);color:var(--muted)}
+.key.eliminated{border-style:dashed;color:var(--muted);text-decoration:line-through}
+.entry-slot[data-slot]{cursor:pointer}
+.entry-slot .ghost{font-style:normal;opacity:.32;color:var(--cyan)}
+.game.is-paused .board,.game.is-paused .dock{filter:blur(14px);opacity:.15;pointer-events:none;user-select:none}
+.reward-badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.tut-banner{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 14px}
+.tut-banner strong{display:inline-flex;align-items:center;gap:6px}
+.tut-card{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.tut-card h2{font-size:1.1rem}
+.tut-history{max-height:210px;margin-top:10px}
+.tut-choices{display:flex;flex-direction:column;gap:8px}
+.tut-choice{justify-content:flex-start;text-align:start;padding:10px 14px;min-height:46px}
+.tut-done{margin-top:12px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;position:relative;overflow:hidden}
+.game .topbar{gap:8px}
+.game .title .badge{font-size:.68rem;padding:2px 8px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.timer-pill{flex:none;padding:0 10px;font-size:.88rem}
