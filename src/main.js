@@ -72,3 +72,6 @@ if ('serviceWorker' in navigator) {
   // Nouvelle version activée : on prévient le joueur (aucun rechargement forcé en pleine partie).
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) toast(t('updateReady')); });
 }
+if (navigator.storage?.persist) {
+  navigator.storage.persist().catch(() => {});
+}

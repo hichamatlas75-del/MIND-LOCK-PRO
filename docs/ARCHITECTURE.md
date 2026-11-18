@@ -20,4 +20,4 @@ Principe : le moteur n'a aucune dépendance DOM ; l'UI consomme le moteur via de
 - `src/game/daily.js` : moteur du Défi Quotidien (PRNG déterministe FNV-1a + Mulberry32 par date `YYYY-MM-DD`, participation unique par jour, protection anti-recul d'horloge, séries, partage emoji `🟢`/`🔵`/`⚪`).
 - `src/services/audio.js` : synthétiseur Web Audio (8 effets sonores distincts, réglage du volume, verrouillage strict avant interaction utilisateur).
 - `src/game/engine.js` : **intact** (aucune modification par rapport à `main`).
-- Distribution Android : voir [docs/ANDROID_DISTRIBUTION.md](ANDROID_DISTRIBUTION.md).
+- Architecture exclusivement PWA (Android, iPhone, iPad, Desktop) : voir [docs/PWA_GUIDE.md](PWA_GUIDE.md).

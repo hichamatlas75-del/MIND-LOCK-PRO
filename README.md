@@ -2,7 +2,7 @@
 
 Jeu de réflexion et de déduction : découvrez le code secret. PWA installable (Android, iOS, Windows), 100% hors ligne.
 
-> **Statut : v0.4.0 – Expérience Premium (Cyber-Tech Cyan & Bleu Électrique), Défi Quotidien, Tableau de bord Statistiques, Audio configurable & Préparation Android.**
+> **Statut : v0.4.0 – Expérience PWA Premium (Android, iPhone, iPad, Desktop), Défi Quotidien, Tableau de bord Statistiques & Audio configurable.**
 
 ## Stack
 HTML5 · CSS3 · JavaScript ES6+ (modules) · PWA · Service Worker · LocalStorage · Web Audio API — sans dépendances.
@@ -20,8 +20,8 @@ npm test       # 65 tests automatisés (Node ≥ 18)
 Accueil (`#/home`) · 100 Niveaux (`#/levels`) · Jeu (`#/game/:n`) · Défi Quotidien (`#/daily`) · Profil & Statistiques (`#/stats`) · Tutoriel interactif (`#/tutorial`) · Paramètres (`#/settings`).
 Captures : [docs/screenshots](docs/screenshots). Test navigateur optionnel : `node scripts/e2e.mjs` (nécessite Chromium et `puppeteer-core`, non inclus dans les dépendances du projet).
 
-## Structure & Distribution Android
-Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) et [docs/ANDROID_DISTRIBUTION.md](docs/ANDROID_DISTRIBUTION.md).
+## Structure & Guide PWA
+Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) et [docs/PWA_GUIDE.md](docs/PWA_GUIDE.md).
 
 ## Feuille de route
 1. Interface de jeu et boucle de jeu 2. Niveaux/difficultés 3. Indices et chronomètre 4. Défis quotidiens et stats 5. Audio, i18n complète 6. Icônes PNG, audit Lighthouse, déploiement.
