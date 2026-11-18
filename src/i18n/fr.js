@@ -84,5 +84,9 @@ export default {
   appearance: "Apparence",
   data: "Données",
   audioHaptics: "Son et vibrations",
-  legend: "Légende"
+  legend: "Légende",
+  replaceTitle: "Remplacer la partie en cours ?",
+  replaceText: "Votre partie en cours au niveau {n} sera perdue.",
+  updateReady: "Nouvelle version installée. Rechargez pour l'appliquer.",
+  noscript: "MIND LOCK PRO nécessite JavaScript."
 };

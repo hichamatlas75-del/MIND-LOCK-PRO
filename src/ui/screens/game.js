@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 import { esc, fmtTime, stars, diffBadge, confirmDialog, confetti } from '../components.js';
 import { getLevel } from '../../game/levels.js';
 import { createGame, submitGuess, useHint, hintsLeft } from '../../game/engine.js';
-import { saveActive, loadActive, clearActive } from '../../game/progress.js';
+import { saveActive, loadActive, clearActive, hasProgress } from '../../game/progress.js';
 import { sfx } from '../../services/audio.js';
 import { vibrate } from '../../services/haptics.js';
 import { TOTAL_LEVELS } from '../../core/config.js';
@@ -14,18 +14,19 @@ import { TOTAL_LEVELS } from '../../core/config.js';
  */
 export function mountGame(root, ctx, { n, fresh }) {
   const rules = getLevel(n);
-  const saved = loadActive();
-  const resume = !fresh && saved && saved.level === n && saved.state?.status === 'playing'
-    && saved.state.rules?.codeLength === rules.codeLength ? saved : null;
+  const saved = loadActive(); // déjà validée (données invalides = null)
+  const resume = !fresh && saved && saved.level === n ? saved : null;
   let state = resume ? resume.state : createGame(rules);
   let elapsed = resume ? resume.elapsed : 0;
-  let input = [], paused = false, busy = false, resultTimer = null;
+  let input = resume ? resume.input : []; // la saisie non validée est restaurée
+  let paused = false, resultTimer = null;
   const $ = s => root.querySelector(s);
   const playing = () => state.status === 'playing' && !paused;
 
   const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(d => `<button class="key" data-d="${d}" aria-label="${d}">${d}</button>`).join('');
   root.innerHTML = `
-  <section class="screen game d-${rules.difficulty}">
+  <main class="screen game d-${rules.difficulty}">
+    <h1 class="sr-only">${t('level')} ${n}</h1>
     <header class="topbar">
       <button class="icon-btn" data-a="back" aria-label="${t('back')}">${icon('back', 20, 'flip-rtl')}</button>
       <div class="title"><strong>${t('level')} ${n}</strong>
@@ -55,7 +56,7 @@ export function mountGame(root, ctx, { n, fresh }) {
       </div>
     </div>
     <div id="overlay"></div>
-  </section>`;
+  </main>`;
 
   /* ---------- rendus partiels ---------- */
   function renderSecret(justHint = -1) {
@@ -99,7 +100,11 @@ export function mountGame(root, ctx, { n, fresh }) {
   const shake = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
   const renderAll = () => { renderSecret(); renderPips(); renderEntry(); renderHistory(); renderKeys(); setMsg(''); };
 
-  const persist = () => state.status === 'playing' ? saveActive({ level: n, state, elapsed }) : clearActive();
+  /** Sauvegarde automatique : partie, chronomètre, indices ET saisie en cours. Rien à protéger → pas de sauvegarde. */
+  const persist = () => {
+    const snap = { level: n, state, elapsed, input };
+    if (state.status === 'playing') saveActive(snap); else clearActive();
+  };
 
   /* ---------- timer ---------- */
   const tick = setInterval(() => {
@@ -111,10 +116,10 @@ export function mountGame(root, ctx, { n, fresh }) {
   /* ---------- actions ---------- */
   function press(d) {
     if (!playing() || input.length >= rules.codeLength || (!rules.allowRepeats && input.includes(d))) return;
-    input.push(d); setMsg(''); sfx.tap(); vibrate(8);
+    input.push(d); setMsg(''); sfx.tap(); vibrate(8); persist();
     renderEntry(input.length - 1); renderKeys();
   }
-  function erase() { if (!playing() || !input.length) return; input.pop(); setMsg(''); sfx.tap(); renderEntry(); renderKeys(); }
+  function erase() { if (!playing() || !input.length) return; input.pop(); setMsg(''); sfx.tap(); persist(); renderEntry(); renderKeys(); }
   function submit() {
     if (!playing()) return;
     const r = submitGuess(state, input);
@@ -136,17 +141,17 @@ export function mountGame(root, ctx, { n, fresh }) {
     clearTimeout(resultTimer);
     state = createGame(rules); elapsed = 0; input = []; paused = false;
     $('#overlay').innerHTML = ''; $('#timer').textContent = fmtTime(0);
-    persist(); renderAll();
+    persist(); persist(); renderAll();
   }
   function pause(on) {
     if (state.status !== 'playing') return;
     paused = on; renderKeys();
-    $('#overlay').innerHTML = on ? `<div class="overlay pause"><div class="sheet center">
+    $('#overlay').innerHTML = on ? `<div class="overlay pause"><div class="sheet center" role="dialog" aria-modal="true" aria-label="${t('paused')}">
       <div class="badge-ic">${icon('pause', 26)}</div><h2>${t('paused')}</h2>
       <p class="muted">${t('level')} ${n} · ${fmtTime(elapsed)}</p>
       <button class="btn primary lg" data-a="resume">${icon('play', 18, '', true)}<span>${t('resumeGame')}</span></button>
       <button class="btn ghost" data-a="back">${t('quit')}</button></div></div>` : '';
-    if (on) persist();
+    if (on) { persist(); $('[data-a="resume"]')?.focus(); }
   }
 
   function finish() {
@@ -159,7 +164,7 @@ export function mountGame(root, ctx, { n, fresh }) {
     resultTimer = setTimeout(() => {
       $('#overlay').innerHTML = `<div class="overlay result ${won ? 'win' : 'lose'}">
         ${won ? '<div class="confetti" id="confetti" aria-hidden="true"></div>' : ''}
-        <div class="sheet center">
+        <div class="sheet center" role="dialog" aria-modal="true" aria-label="${t(won ? 'won' : 'lost')}">
           <div class="badge-ic ${won ? 'win' : 'lose'}">${icon(won ? 'unlock' : 'x', 28)}</div>
           <h2>${t(won ? 'won' : 'lost')}</h2>
           ${won ? `${stars(res.stars, 26)}${res.newBest ? `<span class="badge d-master">${icon('trophy', 12)} ${t('newBest')}</span>` : ''}`
@@ -173,6 +178,7 @@ export function mountGame(root, ctx, { n, fresh }) {
           <button class="btn ghost" data-a="levels">${t('toLevels')}</button>
         </div></div>`;
       if (won) confetti($('#confetti'));
+      $('.result .btn.primary')?.focus();
     }, 1000);
   }
 
@@ -190,14 +196,19 @@ export function mountGame(root, ctx, { n, fresh }) {
     if (document.querySelector('.modal')) return;
     if (/^\d$/.test(e.key)) press(+e.key);
     else if (e.key === 'Backspace') erase();
-    else if (e.key === 'Enter') submit();
+    else if (e.key === 'Enter') { if (!e.target.closest?.('button')) submit(); } // Entrée sur un bouton = clic natif (évite le double envoi)
     else if (e.key === 'Escape') pause(!paused);
   };
   const onVis = () => { if (document.hidden && playing()) pause(true); };
   document.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('pagehide', persist); // dernière sauvegarde avant fermeture/actualisation
 
-  persist(); renderAll();
-  if (state.status !== 'playing') finish();
-  return () => { clearInterval(tick); clearTimeout(resultTimer); document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onVis); root.onclick = null; };
+  renderAll();
+  return () => {
+    persist(); // quitter l'écran (retour, navigation) conserve la partie
+    clearInterval(tick); clearTimeout(resultTimer);
+    document.removeEventListener('keydown', onKey); document.removeEventListener('visibilitychange', onVis);
+    window.removeEventListener('pagehide', persist); root.onclick = null;
+  };
 }

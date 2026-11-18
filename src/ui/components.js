@@ -8,8 +8,8 @@ export const fmtTime = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${St
 export const logo = () => `<div class="logo-lockup">${logoMark(28)}<span class="wordmark">MIND<b>LOCK</b><em>PRO</em></span></div>`;
 
 /** Sélecteur de langue compact (data-a="lang"). */
-export const langSelect = () => `<label class="lang-select" aria-label="${t('lang')}">
-  <select data-a="lang">${langs.map(l => `<option value="${l}" ${l === getLang() ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}</select></label>`;
+export const langSelect = () => `<label class="lang-select">
+  <select data-a="lang" aria-label="${t('lang')}">${langs.map(l => `<option value="${l}" ${l === getLang() ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}</select></label>`;
 
 export const stars = (n, size = 12) =>
   `<span class="stars" aria-label="${n}/3">${[1, 2, 3].map(i => icon('star', size, i <= n ? 'on' : 'off', i <= n)).join('')}</span>`;
@@ -33,7 +33,7 @@ export function levelCell(n, progress, { current, detail = false } = {}) {
 }
 
 /** Barre de progression animée (la largeur est appliquée après insertion dans le DOM). */
-export const progressBar = pct => `<div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i data-w="${pct}"></i></div>`;
+export const progressBar = (pct, label = t('overall')) => `<div class="bar" role="progressbar" aria-label="${esc(label)}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i data-w="${pct}"></i></div>`;
 export function animateBars(root) {
   requestAnimationFrame(() => requestAnimationFrame(() =>
     root.querySelectorAll('.bar i[data-w]').forEach(i => { i.style.width = i.dataset.w + '%'; })));
@@ -50,8 +50,8 @@ export function confirmDialog({ title, text, confirmLabel = t('confirm'), danger
   return new Promise(resolve => {
     const m = document.createElement('div');
     m.className = 'modal';
-    m.innerHTML = `<div class="modal-card" role="alertdialog" aria-modal="true" aria-label="${esc(title)}">
-      <h2>${esc(title)}</h2><p>${esc(text)}</p>
+    m.innerHTML = `<div class="modal-card" role="alertdialog" aria-modal="true" aria-label="${esc(title)}" aria-describedby="modal-desc">
+      <h2>${esc(title)}</h2><p id="modal-desc">${esc(text)}</p>
       <div class="modal-actions"><button class="btn ghost" data-r="0">${t('cancel')}</button>
       <button class="btn ${danger ? 'danger' : 'primary'}" data-r="1">${esc(confirmLabel)}</button></div></div>`;
     const close = v => { document.removeEventListener('keydown', onKey, true); m.remove(); resolve(v); };

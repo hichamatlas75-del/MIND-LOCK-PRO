@@ -84,5 +84,9 @@ export default {
   appearance: "Appearance",
   data: "Data",
   audioHaptics: "Sound & haptics",
-  legend: "Legend"
+  legend: "Legend",
+  replaceTitle: "Replace the game in progress?",
+  replaceText: "Your game in progress at level {n} will be lost.",
+  updateReady: "New version installed. Reload to apply it.",
+  noscript: "MIND LOCK PRO requires JavaScript."
 };

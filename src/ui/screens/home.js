@@ -1,9 +1,9 @@
 import { t, setLang } from '../../i18n/index.js';
 import { icon } from '../icons.js';
-import { logo, langSelect, levelCell, progressBar, animateBars, fmtTime, esc, avatarInitial, diffBadge, confirmDialog, toast } from '../components.js';
+import { logo, langSelect, levelCell, progressBar, animateBars, fmtTime, esc, avatarInitial, diffBadge, toast } from '../components.js';
 import { summarize } from '../../game/stats.js';
 import { getLevel } from '../../game/levels.js';
-import { loadActive, clearActive, isUnlocked } from '../../game/progress.js';
+import { loadActive, isUnlocked } from '../../game/progress.js';
 import { getSettings } from '../../core/settings.js';
 import { LEVELS_PER_TIER } from '../../core/config.js';
 
@@ -18,7 +18,8 @@ export function mountHome(root, ctx) {
   const stat = (ic, value, label) => `<div class="stat card"><span class="stat-ic">${icon(ic, 18)}</span><strong>${value}</strong><span>${label}</span></div>`;
 
   root.innerHTML = `
-  <section class="screen home">
+  <main class="screen home">
+    <h1 class="sr-only">${t('title')}</h1>
     <header class="topbar">
       ${logo()}<span class="spacer"></span>
       ${langSelect()}
@@ -50,21 +51,18 @@ export function mountHome(root, ctx) {
         <button class="link" data-a="levels">${t('seeAll')} ${icon('back', 14, 'flip-rtl-inv')}</button></div>
       <div class="lv-grid">${cells}</div>
     </div>
-  </section>`;
+  </main>`;
   animateBars(root);
 
   root.onchange = e => { if (e.target.dataset.a === 'lang') { setLang(e.target.value); ctx.rerender(); } };
-  root.onclick = async e => {
+  root.onclick = e => {
     const lv = e.target.closest('[data-lv]');
     if (lv) return isUnlocked(progress, +lv.dataset.lv) ? ctx.go(`/game/${lv.dataset.lv}`) : toast(t('lockedHint'));
     const a = e.target.closest('[data-a]')?.dataset.a;
     if (a === 'settings') ctx.go('/settings');
     else if (a === 'levels') ctx.go('/levels');
     else if (a === 'continue') ctx.go(`/game/${active ? active.level : cur}`);
-    else if (a === 'new') {
-      if (active?.state?.guesses?.length && !(await confirmDialog({ title: t('newGameTitle'), text: t('newGameText') }))) return;
-      clearActive(); ctx.go(`/game/${cur}`, { fresh: true });
-    }
+    else if (a === 'new') ctx.go(`/game/${cur}`, { fresh: true }); // la confirmation éventuelle est gérée par le routeur
   };
   return () => { root.onclick = null; root.onchange = null; };
 }

@@ -84,5 +84,9 @@ export default {
   appearance: "المظهر",
   data: "البيانات",
   audioHaptics: "الصوت والاهتزاز",
-  legend: "دليل الألوان"
+  legend: "دليل الألوان",
+  replaceTitle: "استبدال اللعبة الجارية؟",
+  replaceText: "ستفقد لعبتك الجارية في المستوى {n}.",
+  updateReady: "تم تثبيت إصدار جديد. أعد التحميل لتطبيقه.",
+  noscript: "يتطلب MIND LOCK PRO تفعيل JavaScript."
 };

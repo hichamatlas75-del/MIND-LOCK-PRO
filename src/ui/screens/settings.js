@@ -1,6 +1,6 @@
 import { t, setLang, getLang, langs } from '../../i18n/index.js';
 import { icon } from '../icons.js';
-import { confirmDialog, toast, avatarInitial } from '../components.js';
+import { confirmDialog, toast, avatarInitial, esc } from '../components.js';
 import { applyTheme, getTheme } from '../../services/theme.js';
 import { getSettings, setSetting } from '../../core/settings.js';
 import { hapticsSupported, vibrate } from '../../services/haptics.js';
@@ -20,16 +20,17 @@ export function mountSettings(root, ctx) {
       <button class="switch ${on ? 'on' : ''}" role="switch" aria-checked="${on}" aria-label="${label}" data-a="toggle" data-k="${key}" ${disabled ? 'disabled' : ''}><i></i></button></div>`;
 
   root.innerHTML = `
-  <section class="screen settings">
+  <main class="screen settings">
+    <h1 class="sr-only">${t('settings')}</h1>
     <header class="topbar">
       <button class="icon-btn" data-a="back" aria-label="${t('back')}">${icon('back', 20, 'flip-rtl')}</button>
-      <h1 class="page-title">${t('settings')}</h1><span class="spacer"></span>
+      <h2 class="page-title">${t('settings')}</h2><span class="spacer"></span>
     </header>
     <div class="scroll">
       <h2 class="section-title">${t('profile')}</h2>
       <div class="card row-item"><span class="avatar lg">${avatarInitial(s.name) || icon('user', 22)}</span>
         <div class="ri-text"><label for="pname"><strong>${t('playerName')}</strong></label>
-        <input id="pname" class="input" maxlength="20" autocomplete="off" value="${s.name.replace(/"/g, '&quot;')}" placeholder="${t('namePlaceholder')}"></div></div>
+        <input id="pname" class="input" maxlength="20" autocomplete="off" value="${esc(s.name)}" placeholder="${t('namePlaceholder')}"></div></div>
 
       <h2 class="section-title">${t('appearance')}</h2>
       <div class="card stack">
@@ -53,7 +54,7 @@ export function mountSettings(root, ctx) {
       <h2 class="section-title">${t('about')}</h2>
       <div class="card about"><strong>${APP.name}</strong><span class="muted">${t('version')} ${APP.version}</span><p>${t('aboutText')}</p></div>
     </div>
-  </section>`;
+  </main>`;
 
   root.oninput = e => { if (e.target.id === 'pname') { setSetting('name', e.target.value); root.querySelector('.avatar.lg').innerHTML = avatarInitial(e.target.value) || icon('user', 22); } };
   root.onclick = async e => {

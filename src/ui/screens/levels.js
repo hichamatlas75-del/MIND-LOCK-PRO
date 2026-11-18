@@ -20,10 +20,11 @@ export function mountLevels(root, ctx) {
   const cells = Array.from({ length: LEVELS_PER_TIER }, (_, i) => levelCell(first + i, progress, { current: cur, detail: true })).join('');
 
   root.innerHTML = `
-  <section class="screen levels">
+  <main class="screen levels">
+    <h1 class="sr-only">${t('levels')}</h1>
     <header class="topbar">
       <button class="icon-btn" data-a="back" aria-label="${t('back')}">${icon('back', 20, 'flip-rtl')}</button>
-      <h1 class="page-title">${t('levels')}</h1><span class="spacer"></span>
+      <h2 class="page-title">${t('levels')}</h2><span class="spacer"></span>
     </header>
     <div class="scroll">
       <div class="tabs" role="tablist">${tabs}</div>
@@ -34,7 +35,7 @@ export function mountLevels(root, ctx) {
       ${progressBar(Math.round(doneInTier / LEVELS_PER_TIER * 100))}
       <div class="lv-grid detail" style="margin-top:14px">${cells}</div>
     </div>
-  </section>`;
+  </main>`;
   animateBars(root);
 
   root.onclick = e => {
