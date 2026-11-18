@@ -70,9 +70,19 @@ await click(p, '[data-a="resume"]');
 check('jeu : clavier visible dans le viewport', await p.evaluate(() => document.querySelector('.keypad').getBoundingClientRect().bottom <= innerHeight));
 check('jeu : pas de débordement horizontal', (await overflow(p)) <= 0);
 
-// sauvegarde / reprise
-await p.reload({ waitUntil: 'networkidle0' }); await sleep(500);
+// saisie temporaire (chiffres saisis sans valider) + sauvegarde / reprise après rechargement
+await type(p, [9, 8]);
+check('saisie temporaire : 2 chiffres affichés et persistés', (await p.$$('#entry .entry-slot.filled')).length === 2 && (await active(p)).input.length === 2);
+await p.reload({ waitUntil: 'networkidle0' }); await sleep(600);
 check('sauvegarde : partie reprise après rechargement', (await p.$$('.attempt')).length === 1 && (await p.$$('#secret .slot.hinted')).length === 1);
+check('sauvegarde : saisie temporaire restaurée après rechargement', (await p.$$eval('#entry .entry-slot.filled', els => els.map(e => e.textContent).join(''))) === '98');
+await click(p, '[data-a="erase"]'); await click(p, '[data-a="erase"]');
+
+// bouton Retour Android (history.back)
+await click(p, '[data-a="back"]'); await sleep(300);
+check('navigation : retour vers /levels conserve la partie', (await hash(p)) === '#/levels' && !!(await active(p)));
+await p.goBack(); await sleep(400);
+check('bouton Retour Android : revient à la partie en cours sans confirmation', (await hash(p)) === '#/game/1' && !(await p.$('.modal')) && (await p.$$('.attempt')).length === 1);
 
 // victoire
 a = await active(p); await type(p, a.state.secret); await click(p, '[data-a="submit"]'); await sleep(2400);
@@ -82,6 +92,49 @@ check('victoire : niveau 2 débloqué', await p.evaluate(() => JSON.parse(localS
 check('victoire : stats enregistrées', await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mlp:stats')); return s.wins === 1 && s.streak === 1; }));
 await click(p, '[data-a="next"]'); await sleep(600);
 check('transition : niveau suivant', (await hash(p)) === '#/game/2');
+
+// protection des parties : aucune confirmation si aucune progression au niveau 2
+await click(p, '[data-a="back"]'); await sleep(300);
+await click(p, '[data-lv="1"]'); await sleep(400);
+check('protection : pas de confirmation inutile sans progression', (await hash(p)) === '#/game/1' && !(await p.$('.modal')));
+await p.goto(BASE + '/#/game/2', { waitUntil: 'networkidle0' }); await sleep(400);
+
+// protection des parties : confirmation + ANNULATION + CONFIRMATION
+await click(p, '[data-a="hint"]'); await sleep(300); // progression au niveau 2
+const savedBefore = await active(p);
+await click(p, '[data-a="back"]'); await sleep(300);
+await click(p, '[data-lv="1"]'); await sleep(300);
+check('protection : modale affichée avant de remplacer la partie du niveau 2', !!(await p.$('.modal')));
+await shot(p, '16-replace-confirm');
+await p.$eval('.modal [data-r="0"]', e => e.click()); await sleep(300); // ANNULER
+check('protection : annulation revient à la grille et préserve la partie du niveau 2', (await hash(p)) === '#/levels' && (await active(p))?.level === 2 && (await active(p))?.state.hintsUsed.length === 1 && JSON.stringify((await active(p)).state.secret) === JSON.stringify(savedBefore.state.secret));
+// même protection depuis l'accueil (grille + Nouvelle partie)
+await p.goto(BASE + '/#/home', { waitUntil: 'networkidle0' }); await sleep(400);
+await click(p, '[data-a="new"]'); await sleep(300);
+check('protection : Nouvelle partie demande confirmation', !!(await p.$('.modal')));
+await p.$eval('.modal [data-r="0"]', e => e.click()); await sleep(300);
+check('protection : annulation sur l\'accueil préserve la partie', (await hash(p)) === '#/home' && (await active(p))?.level === 2);
+// CONFIRMER le remplacement vers le niveau 1, puis retour au niveau 2 pour le test de défaite
+await click(p, '[data-lv="1"]'); await sleep(300);
+await p.$eval('.modal [data-r="1"]', e => e.click()); await sleep(400);
+check('protection : confirmation ouvre le niveau 1 avec une nouvelle partie', (await hash(p)) === '#/game/1' && (await p.$$('.attempt')).length === 0);
+await p.goto(BASE + '/#/game/2', { waitUntil: 'networkidle0' }); await sleep(400);
+
+// données LocalStorage corrompues dans le navigateur → pas de crash, nouvelle partie propre
+await p.evaluate(() => { localStorage.setItem('mlp:active', '{corrompu'); localStorage.setItem('mlp:stats', '"bad"'); });
+await p.reload({ waitUntil: 'networkidle0' }); await sleep(400);
+check('localStorage corrompu : reprise propre sans erreur', (await hash(p)) === '#/game/2' && (await p.$$('#secret .slot.masked')).length === 4);
+await click(p, '[data-a="hint"]'); await sleep(200); // recrée une sauvegarde active pour la suite
+
+// accessibilité : tous les boutons/contrôles ont un nom accessible et un seul h1 par écran
+for (const r of ['home', 'levels', 'settings', 'game/2']) {
+  await p.goto(`${BASE}/#/${r}`, { waitUntil: 'networkidle0' }); await sleep(300);
+  const a11y = await p.evaluate(() => {
+    const unnamed = [...document.querySelectorAll('button,select,input')].filter(el => !(el.getAttribute('aria-label') || el.textContent.trim() || el.labels?.length));
+    return { h1: document.querySelectorAll('h1').length, unnamed: unnamed.length };
+  });
+  check(`accessibilité ${r} : 1 titre h1 et tous les contrôles nommés`, a11y.h1 === 1 && a11y.unnamed === 0, JSON.stringify(a11y));
+}
 
 // défaite (12 tentatives au niveau 2)
 a = await active(p); const sec2 = a.state.secret;
