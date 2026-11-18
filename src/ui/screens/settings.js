@@ -51,6 +51,11 @@ export function mountSettings(root, ctx) {
         <div class="ri-text"><strong>${t('resetProgress')}</strong><small>${t('resetDesc')}</small></div>
         <button class="btn danger sm" data-a="reset">${t('confirm')}</button></div>
 
+      <h2 class="section-title">${t('tutorial')}</h2>
+      <div class="card row-item"><span class="ri-ic">${icon('help', 18)}</span>
+        <div class="ri-text"><strong>${t('tutorial')}</strong><small>${t('tutorialSub')}</small></div>
+        <button class="btn ghost sm" data-a="tutorial">${t('replayTutorial')}</button></div>
+
       <h2 class="section-title">${t('about')}</h2>
       <div class="card about"><strong>${APP.name}</strong><span class="muted">${t('version')} ${APP.version}</span><p>${t('aboutText')}</p></div>
     </div>
@@ -61,6 +66,7 @@ export function mountSettings(root, ctx) {
     const b = e.target.closest('[data-a]'); if (!b) return;
     const a = b.dataset.a;
     if (a === 'back') ctx.go('/home');
+    else if (a === 'tutorial') ctx.go('/tutorial');
     else if (a === 'lang') { setLang(b.dataset.v); ctx.rerender(); }
     else if (a === 'theme') { applyTheme(b.dataset.v); ctx.rerender(); }
     else if (a === 'toggle') {

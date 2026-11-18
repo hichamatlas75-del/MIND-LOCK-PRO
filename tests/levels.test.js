@@ -22,3 +22,27 @@ test('difficulté croissante : doublons de plus en plus tôt, maître toujours a
 test('niveau invalide', () => {
   for (const n of [0, 101, -1, 1.5, '3', NaN]) assert.throws(() => getLevel(n), RangeError);
 });
+
+import { deduceEliminatedDigits } from '../src/game/levels.js';
+
+test('équilibrage : parTime, starThresholds cohérents et progression monotone sans inversion 1-18 -> 26-32', () => {
+  for (let n = 1; n <= 100; n++) {
+    const l = getLevel(n);
+    assert.ok(Number.isInteger(l.parTime) && l.parTime >= 60 && l.parTime <= 300);
+    const [s3, s2] = l.starThresholds;
+    assert.ok(s3 >= l.codeLength && s3 < s2 && s2 < l.maxAttempts, `seuils niveau ${n}: ${s3}/${s2}/${l.maxAttempts}`);
+  }
+  // Niveaux 26-32 (Normal sans doublons, 9 tentatives) plus exigeants que Débutant 1-18 (sans doublons, 12->10 tentatives)
+  assert.ok(getLevel(26).maxAttempts < getLevel(18).maxAttempts);
+  // Maître (6 chiffres avec doublons) garantit au moins 9 tentatives pour éviter les parties jouées au hasard
+  for (let n = 76; n <= 100; n++) assert.ok(getLevel(n).maxAttempts >= 9);
+});
+
+test('deduceEliminatedDigits : identifie uniquement les chiffres des tentatives à 0 bien placé et 0 mal placé', () => {
+  const elim = deduceEliminatedDigits([
+    { guess: [1, 2, 3, 4], exact: 1, misplaced: 0 },
+    { guess: [5, 6, 7, 8], exact: 0, misplaced: 0 },
+    { guess: [7, 8, 9, 0], exact: 0, misplaced: 1 }
+  ]);
+  assert.deepEqual([...elim].sort(), [5, 6, 7, 8]);
+});

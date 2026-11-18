@@ -1,16 +1,16 @@
 /* Service Worker – précache + cache-first, fonctionnement hors ligne.
  * IMPORTANT : incrémenter CACHE (= version de package.json) à chaque déploiement, sinon les joueurs
  * gardent l'ancienne version. Un test (tests/pwa.test.js) vérifie cette cohérence et la liste des fichiers. */
-const CACHE = 'mind-lock-pro-v0.3.1';
+const CACHE = 'mind-lock-pro-v0.3.2';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './src/main.js', './src/ui/styles.css',
   './src/core/config.js', './src/core/storage.js', './src/core/events.js', './src/core/settings.js',
-  './src/game/engine.js', './src/game/levels.js', './src/game/progress.js', './src/game/stats.js', './src/game/session.js',
+  './src/game/engine.js', './src/game/levels.js', './src/game/progress.js', './src/game/stats.js', './src/game/session.js', './src/game/tutorial.js',
   './src/services/audio.js', './src/services/theme.js', './src/services/haptics.js',
   './src/i18n/index.js', './src/i18n/fr.js', './src/i18n/en.js', './src/i18n/ar.js',
   './src/ui/icons.js', './src/ui/components.js',
-  './src/ui/screens/home.js', './src/ui/screens/levels.js', './src/ui/screens/game.js', './src/ui/screens/settings.js',
+  './src/ui/screens/home.js', './src/ui/screens/levels.js', './src/ui/screens/game.js', './src/ui/screens/settings.js', './src/ui/screens/tutorial.js',
   './public/icons/icon.svg', './public/icons/icon-maskable.svg',
   './public/icons/icon-180.png', './public/icons/icon-192.png', './public/icons/icon-512.png',
   './public/icons/icon-maskable-192.png', './public/icons/icon-maskable-512.png'
