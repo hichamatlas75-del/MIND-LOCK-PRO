@@ -1,0 +1,17 @@
+{
+  "name": "MIND LOCK PRO",
+  "short_name": "MIND LOCK",
+  "description": "Jeu de réflexion et de déduction : découvrez le code secret.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b1a",
+  "theme_color": "#0b0b1a",
+  "lang": "fr",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    { "src": "public/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "public/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
