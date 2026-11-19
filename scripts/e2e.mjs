@@ -88,22 +88,53 @@ check('jeu : pause affichée et plateau masqué (is-paused)', !!(await p.$('.ove
 const t0 = await p.$eval('#timer', e => e.textContent); await sleep(1600);
 check('jeu : chronomètre arrêté en pause', t0 === await p.$eval('#timer', e => e.textContent));
 await click(p, '[data-a="resume"]');
+check('jeu : zone élimination présente (10 boutons 0-9 + Réinitialiser)', (await p.$$('#elim-panel .elim-btn')).length === 10 && !!(await p.$('#elim-reset')));
 check('jeu : clavier visible dans le viewport', await p.evaluate(() => document.querySelector('.keypad').getBoundingClientRect().bottom <= innerHeight));
 check('jeu : pas de débordement horizontal', (await overflow(p)) <= 0);
 
-// saisie temporaire (chiffres saisis sans valider) + sauvegarde / reprise après rechargement
+// Phase 4 : Élimination manuelle des chiffres (tests obligatoires 1 à 7)
+await click(p, '.elim-btn[data-elim="9"]'); await sleep(150);
+check('élimination (1) : clic sur 9 marque éliminé, compteur 9/10, touche 9 du clavier marquée mais non désactivée', await p.evaluate(() => {
+  const b = document.querySelector('.elim-btn[data-elim="9"]');
+  const k = document.querySelector('.key[data-d="9"]');
+  return b.classList.contains('is-eliminated') && b.getAttribute('aria-pressed') === 'true' && k.classList.contains('eliminated') && !k.disabled && document.querySelector('#elim-count').textContent.includes('9/10');
+}));
+await click(p, '.elim-btn[data-elim="9"]'); await sleep(150);
+check('élimination (2) : second clic sur 9 restaure le chiffre (10/10)', await p.evaluate(() => {
+  const b = document.querySelector('.elim-btn[data-elim="9"]');
+  return !b.classList.contains('is-eliminated') && b.getAttribute('aria-pressed') === 'false' && document.querySelector('#elim-count').textContent.includes('10/10');
+}));
+// Éliminer 2 chiffres + tester l'avertissement discret lors de la saisie d'un chiffre éliminé
+await click(p, '.elim-btn[data-elim="9"]'); await click(p, '.elim-btn[data-elim="8"]'); await sleep(150);
+await shot(p, '26-game-elimination');
+// saisie temporaire (chiffres saisis sans valider, dont chiffres éliminés) + sauvegarde / reprise après rechargement
 await type(p, [9, 8]);
-check('saisie temporaire : 2 chiffres affichés et persistés', (await p.$$('#entry .entry-slot.filled')).length === 2 && (await active(p)).input.length === 2);
+check('élimination (7) : avertissement discret affiché si un chiffre éliminé est saisi, validation reste active', await p.evaluate(() => {
+  const m = document.querySelector('#msg');
+  return m.classList.contains('warn') && m.textContent.trim().length > 0;
+}));
+check('saisie temporaire : 2 chiffres affichés et persistés avec éliminations', (await p.$$('#entry .entry-slot.filled')).length === 2 && (await active(p)).input.length === 2 && JSON.stringify((await active(p)).eliminated) === '[8,9]');
 await p.reload({ waitUntil: 'networkidle0' }); await sleep(600);
 check('sauvegarde : partie reprise après rechargement', (await p.$$('.attempt')).length === 1 && (await p.$$('#secret .slot.hinted')).length === 1);
 check('sauvegarde : saisie temporaire restaurée après rechargement', (await p.$$eval('#entry .entry-slot.filled', els => els.map(e => e.textContent).join(''))) === '98');
+check('élimination (4) : chiffres éliminés [8,9] et compteur 8/10 restaurés après actualisation', await p.evaluate(() => {
+  return document.querySelector('.elim-btn[data-elim="9"]').classList.contains('is-eliminated') &&
+    document.querySelector('.elim-btn[data-elim="8"]').classList.contains('is-eliminated') &&
+    document.querySelector('#elim-count').textContent.includes('8/10');
+}));
 await click(p, '[data-a="erase"]'); await click(p, '[data-a="erase"]');
 
-// bouton Retour Android (history.back)
+// bouton Retour Android (history.back) + reprise de partie avec éliminations conservées (5)
 await click(p, '[data-a="back"]'); await sleep(300);
 check('navigation : retour vers /levels conserve la partie', (await hash(p)) === '#/levels' && !!(await active(p)));
 await p.goBack(); await sleep(400);
-check('bouton Retour Android : revient à la partie en cours sans confirmation', (await hash(p)) === '#/game/1' && !(await p.$('.modal')) && (await p.$$('.attempt')).length === 1);
+check('bouton Retour Android + élimination (5) : revient à la partie en cours avec éliminations conservées', (await hash(p)) === '#/game/1' && !(await p.$('.modal')) && (await p.$$('.attempt')).length === 1 && (await p.$$('.elim-btn.is-eliminated')).length === 2);
+
+// Réinitialiser tous les chiffres éliminés (3)
+await click(p, '#elim-reset'); await sleep(150);
+check('élimination (3) : bouton Réinitialiser rétablit tous les chiffres (10/10)', (await p.$$('.elim-btn.is-eliminated')).length === 0 && await p.$eval('#elim-reset', e => e.disabled));
+// Éliminer un chiffre avant la victoire pour vérifier qu'une nouvelle partie (niveau suivant) réinitialise les éliminations (6)
+await click(p, '.elim-btn[data-elim="0"]'); await sleep(100);
 
 // victoire
 a = await active(p); await type(p, a.state.secret); await click(p, '[data-a="submit"]'); await sleep(2400);
@@ -112,7 +143,7 @@ check('victoire : feuille de résultat + étoiles', !!(await p.$('.result.win'))
 check('victoire : niveau 2 débloqué', await p.evaluate(() => JSON.parse(localStorage.getItem('mlp:progress')).unlocked === 2));
 check('victoire : stats enregistrées', await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mlp:stats')); return s.wins === 1 && s.streak === 1; }));
 await click(p, '[data-a="next"]'); await sleep(600);
-check('transition : niveau suivant', (await hash(p)) === '#/game/2');
+check('transition + élimination (6) : nouvelle partie au niveau suivant réinitialise les éliminations', (await hash(p)) === '#/game/2' && (await p.$$('.elim-btn.is-eliminated')).length === 0 && (await active(p)).eliminated.length === 0);
 
 // protection des parties : aucune confirmation si aucune progression au niveau 2
 await click(p, '[data-a="back"]'); await sleep(300);

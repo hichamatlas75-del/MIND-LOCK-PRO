@@ -49,11 +49,36 @@ export function recordWin(p, n, { attempts, time, stars = 0, clean }) {
 }
 
 /**
- * Partie en cours (sauvegarde automatique) : { level, state, elapsed, input }.
+ * Partie en cours (sauvegarde automatique) : { level, state, elapsed, input, eliminated }.
  * `input` = chiffres saisis mais pas encore validés (absent des anciennes sauvegardes → []).
+ * `eliminated` = chiffres éliminés manuellement par le joueur (absent des anciennes sauvegardes → []).
  */
 export const saveActive = a => storage.set('active', a);
 export const clearActive = () => storage.remove('active');
+
+/** Nettoie et trie une liste de chiffres éliminés manuellement (entiers uniques 0..digits-1). Pur. */
+export function sanitizeEliminated(list, digits = 10) {
+  if (!Array.isArray(list)) return [];
+  const out = new Set();
+  for (const d of list) {
+    if (Number.isInteger(d) && d >= 0 && d < digits) out.add(d);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** Bascule l'élimination manuelle du chiffre `d` dans la liste `eliminated`. Pur. */
+export function toggleEliminated(list, d, digits = 10) {
+  const clean = sanitizeEliminated(list, digits);
+  if (!Number.isInteger(d) || d < 0 || d >= digits) return clean;
+  return clean.includes(d) ? clean.filter(x => x !== d) : [...clean, d].sort((a, b) => a - b);
+}
+
+/** Vérifie si la saisie `input` contient au moins un chiffre marqué comme éliminé. Pur. */
+export function hasEliminatedInInput(input = [], eliminated = []) {
+  if (!Array.isArray(input) || !Array.isArray(eliminated) || !input.length || !eliminated.length) return false;
+  const set = new Set(eliminated);
+  return input.some(d => set.has(d));
+}
 
 /**
  * Valide et reconstruit une sauvegarde de partie. Retourne null si elle est invalide :
@@ -86,8 +111,9 @@ export function validateActive(a) {
     const okInput = input.length < rules.codeLength + 1 && input.every(d => Number.isInteger(d) && d >= 0 && d < rules.digits)
       && (rules.allowRepeats || new Set(input).size === input.length);
     if (!okInput || input.length > rules.codeLength) input = []; // saisie invalide : on l'ignore, la partie reste valide
+    const eliminated = sanitizeEliminated(a.eliminated, rules.digits);
     return {
-      level: a.level, elapsed: Math.min(Math.floor(a.elapsed), 86400), input: [...input],
+      level: a.level, elapsed: Math.min(Math.floor(a.elapsed), 86400), input: [...input], eliminated,
       state: { rules, secret: [...s.secret], guesses, hintsUsed: hintsUsed.map(h => ({ pos: h.pos, digit: h.digit })), status: 'playing' }
     };
   } catch { return null; }
@@ -100,8 +126,13 @@ export function loadActive() {
   return v;
 }
 
-/** Une partie contient-elle une progression à protéger (tentative, indice ou saisie en cours) ? */
-export const hasProgress = a => !!a && (a.state.guesses.length > 0 || a.state.hintsUsed.length > 0 || (a.input?.length ?? 0) > 0);
+/** Une partie contient-elle une progression à protéger (tentative, indice, saisie ou éliminations en cours) ? */
+export const hasProgress = a => !!a && (
+  a.state.guesses.length > 0 ||
+  a.state.hintsUsed.length > 0 ||
+  (a.input?.length ?? 0) > 0 ||
+  (a.eliminated?.length ?? 0) > 0
+);
 
 /**
  * Faut-il demander confirmation avant d'ouvrir le niveau n ? Oui si une partie avec progression existe

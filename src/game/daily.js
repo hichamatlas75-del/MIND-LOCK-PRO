@@ -89,7 +89,13 @@ export function sanitizeDailyStore(raw) {
   const totalWins = Object.values(history).filter(e => e.status === 'won').length;
   const lastSeenDate = typeof raw.lastSeenDate === 'string' && DATE_RE.test(raw.lastSeenDate) ? raw.lastSeenDate : null;
   const active = raw.active && typeof raw.active === 'object' && DATE_RE.test(raw.active.dateKey) && !history[raw.active.dateKey]
-    ? raw.active : null;
+    ? {
+        ...raw.active,
+        eliminated: Array.isArray(raw.active.eliminated)
+          ? [...new Set(raw.active.eliminated.filter(d => Number.isInteger(d) && d >= 0 && d < DAILY_RULES.digits))].sort((a, b) => a - b)
+          : []
+      }
+    : null;
   return { lastSeenDate, streak, bestStreak, totalWins, totalPlayed, active, history };
 }
 

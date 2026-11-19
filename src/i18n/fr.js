@@ -165,5 +165,10 @@ export default {
   avgTime: "Temps moyen",
   categoryProgress: "Progression par catégorie",
   bestStreakLabel: "Record de série",
-  levelUnlockedBadge: "Niveau {n} débloqué !"
+  levelUnlockedBadge: "Niveau {n} débloqué !",
+  elimTitle: "Élimination des chiffres",
+  elimAvailable: "{n}/{total} disponibles",
+  elimReset: "Réinitialiser",
+  elimWarn: "Note : votre saisie contient un chiffre que vous avez éliminé",
+  elimDigitLabel: "Éliminer le chiffre {d}"
 };

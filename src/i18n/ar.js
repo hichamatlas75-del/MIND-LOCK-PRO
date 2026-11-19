@@ -165,5 +165,10 @@ export default {
   avgTime: "متوسط الوقت",
   categoryProgress: "التقدم حسب الفئة",
   bestStreakLabel: "أفضل سلسلة انتصارات",
-  levelUnlockedBadge: "تم فتح المستوى {n}!"
+  levelUnlockedBadge: "تم فتح المستوى {n}!",
+  elimTitle: "استبعاد الأرقام",
+  elimAvailable: "{n}/{total} متاحة",
+  elimReset: "إعادة ضبط",
+  elimWarn: "ملاحظة: يحتوي إدخالك على رقم قمت باستبعاده",
+  elimDigitLabel: "استبعاد الرقم {d}"
 };

@@ -1,16 +1,16 @@
 import { t } from '../../i18n/index.js';
 import { icon } from '../icons.js';
 import { fmtTime, stars, diffBadge, confirmDialog, confetti } from '../components.js';
-import { getLevel, deduceEliminatedDigits } from '../../game/levels.js';
+import { getLevel } from '../../game/levels.js';
 import { createGame, submitGuess, useHint, hintsLeft } from '../../game/engine.js';
-import { saveActive, loadActive, clearActive } from '../../game/progress.js';
+import { saveActive, loadActive, clearActive, toggleEliminated, hasEliminatedInInput } from '../../game/progress.js';
 import { sfx } from '../../services/audio.js';
 import { vibrate } from '../../services/haptics.js';
 import { TOTAL_LEVELS } from '../../core/config.js';
 
 /**
  * Écran de jeu. Toute la logique de jeu passe par le moteur (`engine.js`) ;
- * cet écran pilote l'interface, les aides visuelles de déduction et la persistance.
+ * cet écran pilote l'interface, l'élimination manuelle des chiffres et la persistance.
  */
 export function mountGame(root, ctx, { n, fresh }) {
   const rules = getLevel(n);
@@ -19,11 +19,15 @@ export function mountGame(root, ctx, { n, fresh }) {
   let state = resume ? resume.state : createGame(rules);
   let elapsed = resume ? resume.elapsed : 0;
   let input = resume ? resume.input : []; // la saisie non validée est restaurée
+  let eliminated = resume && Array.isArray(resume.eliminated) ? [...resume.eliminated] : [];
   let paused = false, resultTimer = null;
   const $ = s => root.querySelector(s);
   const playing = () => state.status === 'playing' && !paused;
 
   const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(d => `<button class="key" data-d="${d}" aria-label="${d}">${d}</button>`).join('');
+  const elimBtns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d =>
+    `<button class="elim-btn" data-elim="${d}" aria-pressed="false" aria-label="${t('elimDigitLabel', { d })}">${d}</button>`
+  ).join('');
   root.innerHTML = `
   <main class="screen game d-${rules.difficulty}">
     <h1 class="sr-only">${t('level')} ${n}</h1>
@@ -48,6 +52,14 @@ export function mountGame(root, ctx, { n, fresh }) {
         </div>
       </div>
       <div class="history" id="history" aria-live="polite"></div>
+      <section class="elim-bar" id="elim-panel" aria-label="${t('elimTitle')}">
+        <div class="elim-head">
+          <span class="elim-title">${t('elimTitle')}</span>
+          <span class="elim-count" id="elim-count"></span>
+          <button class="elim-reset" id="elim-reset" data-a="elim-reset">${t('elimReset')}</button>
+        </div>
+        <div class="elim-digits" id="elim-digits">${elimBtns}</div>
+      </section>
     </div>
     <div class="dock">
       <p class="msg" id="msg" role="alert"></p>
@@ -100,26 +112,52 @@ export function mountGame(root, ctx, { n, fresh }) {
     }).join('');
     h.scrollTop = h.scrollHeight;
   }
+  function renderElimination(animDigit = -1) {
+    const elimSet = new Set(eliminated);
+    const on = playing();
+    const avail = rules.digits - elimSet.size;
+    $('#elim-count').textContent = t('elimAvailable', { n: avail, total: rules.digits });
+    const resetBtn = $('#elim-reset');
+    resetBtn.disabled = !on || elimSet.size === 0;
+    root.querySelectorAll('.elim-btn[data-elim]').forEach(btn => {
+      const d = +btn.dataset.elim;
+      const isElim = elimSet.has(d);
+      btn.classList.toggle('is-eliminated', isElim);
+      btn.classList.toggle('pop', d === animDigit);
+      btn.setAttribute('aria-pressed', String(isElim));
+      btn.disabled = !on;
+    });
+  }
   function renderKeys() {
     const full = input.length >= rules.codeLength, on = playing();
-    const elim = deduceEliminatedDigits(state.guesses);
+    const elimSet = new Set(eliminated);
     root.querySelectorAll('.key[data-d]').forEach(k => {
       const d = +k.dataset.d;
-      k.classList.toggle('eliminated', elim.has(d));
-      k.disabled = !on || full || (!rules.allowRepeats && input.includes(d)); // chiffres interdits
+      k.classList.toggle('eliminated', elimSet.has(d));
+      // Un chiffre éliminé manuellement reste saisissable sur le clavier (seuls les doublons interdits ou la fin de saisie désactivent la touche)
+      k.disabled = !on || full || (!rules.allowRepeats && input.includes(d));
     });
     $('[data-a="erase"]').disabled = !on || !input.length;
     $('[data-a="submit"]').disabled = !on || !full;
     const hb = $('[data-a="hint"]'); hb.disabled = !on || hintsLeft(state) <= 0;
     $('#hintcount').textContent = rules.hints ? hintsLeft(state) : '–';
   }
-  const setMsg = m => { $('#msg').textContent = m; };
+  function setMsg(m = '', warn = false) {
+    const el = $('#msg');
+    if (!m && hasEliminatedInInput(input, eliminated)) {
+      el.textContent = t('elimWarn');
+      el.classList.add('warn');
+      return;
+    }
+    el.textContent = m;
+    el.classList.toggle('warn', !!warn && !!m);
+  }
   const shake = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
-  const renderAll = () => { renderSecret(); renderPips(); renderEntry(); renderHistory(); renderKeys(); setMsg(''); };
+  const renderAll = () => { renderSecret(); renderPips(); renderEntry(); renderHistory(); renderElimination(); renderKeys(); setMsg(''); };
 
-  /** Sauvegarde automatique : partie, chronomètre, indices ET saisie en cours. */
+  /** Sauvegarde automatique : partie, chronomètre, indices, saisie en cours ET chiffres éliminés. */
   const persist = () => {
-    const snap = { level: n, state, elapsed, input };
+    const snap = { level: n, state, elapsed, input, eliminated };
     if (state.status === 'playing') saveActive(snap); else clearActive();
   };
 
@@ -131,12 +169,24 @@ export function mountGame(root, ctx, { n, fresh }) {
   }, 1000);
 
   /* ---------- actions ---------- */
+  function toggleElim(d) {
+    if (!playing()) return;
+    eliminated = toggleEliminated(eliminated, d, rules.digits);
+    sfx.click(); vibrate(6); persist();
+    renderElimination(d); renderKeys(); setMsg('');
+  }
+  function resetElim() {
+    if (!playing() || !eliminated.length) return;
+    eliminated = [];
+    sfx.click(); vibrate(10); persist();
+    renderElimination(); renderKeys(); setMsg('');
+  }
   function press(d) {
     if (!playing() || input.length >= rules.codeLength || (!rules.allowRepeats && input.includes(d))) return;
-    input.push(d); setMsg(''); sfx.digit(); vibrate(8); persist();
-    renderEntry(input.length - 1); renderKeys();
+    input.push(d); sfx.digit(); vibrate(8); persist();
+    renderEntry(input.length - 1); renderKeys(); setMsg('');
   }
-  function erase() { if (!playing() || !input.length) return; input.pop(); setMsg(''); sfx.click(); persist(); renderEntry(); renderKeys(); }
+  function erase() { if (!playing() || !input.length) return; input.pop(); sfx.click(); persist(); renderEntry(); renderKeys(); setMsg(''); }
   function submit() {
     if (!playing()) return;
     const r = submitGuess(state, input);
@@ -154,9 +204,9 @@ export function mountGame(root, ctx, { n, fresh }) {
     renderSecret(r.hint.pos); renderEntry(); renderKeys(); persist();
   }
   async function restart() {
-    if (state.guesses.length && !(await confirmDialog({ title: t('restartTitle'), text: t('restartText') }))) return;
+    if ((state.guesses.length || eliminated.length) && !(await confirmDialog({ title: t('restartTitle'), text: t('restartText') }))) return;
     clearTimeout(resultTimer);
-    state = createGame(rules); elapsed = 0; input = []; paused = false;
+    state = createGame(rules); elapsed = 0; input = []; eliminated = []; paused = false;
     root.querySelector('.game').classList.remove('is-paused', 'is-won', 'is-lost');
     $('#overlay').innerHTML = ''; $('#timer').textContent = fmtTime(0);
     persist(); renderAll();
@@ -165,7 +215,7 @@ export function mountGame(root, ctx, { n, fresh }) {
     if (state.status !== 'playing') return;
     paused = on;
     root.querySelector('.game').classList.toggle('is-paused', on);
-    renderKeys();
+    renderElimination(); renderKeys();
     $('#overlay').innerHTML = on ? `<div class="overlay pause"><div class="sheet center" role="dialog" aria-modal="true" aria-label="${t('paused')}">
       <div class="badge-ic">${icon('pause', 26)}</div><h2>${t('paused')}</h2>
       <p class="muted">${t('level')} ${n} · ${fmtTime(elapsed)}</p>
@@ -177,7 +227,7 @@ export function mountGame(root, ctx, { n, fresh }) {
 
   function finish() {
     const won = state.status === 'won';
-    persist(); renderSecret();
+    persist(); renderSecret(); renderElimination();
     let res = { stars: 0, clean: false, hintCapped: false, newBest: false, unlockedNewLevel: null };
     if (won) {
       res = ctx.session.win(n, {
@@ -221,17 +271,19 @@ export function mountGame(root, ctx, { n, fresh }) {
     const slot = e.target.closest('[data-slot]');
     if (slot && playing()) {
       const idx = +slot.dataset.slot;
-      if (idx < input.length) { input = input.slice(0, idx); setMsg(''); sfx.click(); persist(); renderEntry(); renderKeys(); }
+      if (idx < input.length) { input = input.slice(0, idx); sfx.click(); persist(); renderEntry(); renderKeys(); setMsg(''); }
       return;
     }
     const k = e.target.closest('button'); if (!k) return;
+    if (k.dataset.elim !== undefined) return toggleElim(+k.dataset.elim);
     if (k.dataset.d !== undefined) return press(+k.dataset.d);
     ({ erase, submit, hint, restart,
+       'elim-reset': resetElim,
        pause: () => pause(true), resume: () => pause(false),
        tutorial: () => { persist(); ctx.go('/tutorial'); },
        back: () => { persist(); ctx.go('/levels'); }, levels: () => ctx.go('/levels'),
        next: () => ctx.go(`/game/${n + 1}`, { fresh: true }),
-       retry: () => { $('#overlay').innerHTML = ''; root.querySelector('.game').classList.remove('is-won', 'is-lost'); state = createGame(rules); elapsed = 0; input = []; persist(); renderAll(); $('#timer').textContent = fmtTime(0); }
+       retry: () => { $('#overlay').innerHTML = ''; root.querySelector('.game').classList.remove('is-won', 'is-lost'); state = createGame(rules); elapsed = 0; input = []; eliminated = []; persist(); renderAll(); $('#timer').textContent = fmtTime(0); }
     })[k.dataset.a]?.();
   };
   const onKey = e => {

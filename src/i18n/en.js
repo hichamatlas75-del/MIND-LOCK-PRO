@@ -165,5 +165,10 @@ export default {
   avgTime: "Average time",
   categoryProgress: "Progress by category",
   bestStreakLabel: "Best streak",
-  levelUnlockedBadge: "Level {n} unlocked!"
+  levelUnlockedBadge: "Level {n} unlocked!",
+  elimTitle: "Number elimination",
+  elimAvailable: "{n}/{total} available",
+  elimReset: "Reset",
+  elimWarn: "Note: your entry includes a digit you marked as eliminated",
+  elimDigitLabel: "Eliminate digit {d}"
 };
