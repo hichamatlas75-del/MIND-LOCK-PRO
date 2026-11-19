@@ -1,7 +1,7 @@
 /* Service Worker – précache + cache-first, fonctionnement hors ligne.
  * IMPORTANT : incrémenter CACHE (= version de package.json) à chaque déploiement, sinon les joueurs
  * gardent l'ancienne version. Un test (tests/pwa.test.js) vérifie cette cohérence et la liste des fichiers. */
-const CACHE = 'mind-lock-pro-v0.4.0';
+const CACHE = 'mind-lock-pro-v0.4.1';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './src/main.js', './src/ui/styles.css',
