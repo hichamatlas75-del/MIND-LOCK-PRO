@@ -18,6 +18,7 @@ Principe : le moteur n'a aucune dépendance DOM ; l'UI consomme le moteur via de
   - `tutorial.js` (tutoriel interactif en 8 étapes),
   - `settings.js` (profil, langue FR/EN/AR, thème sombre/clair, son + curseur de volume 0–100 %, vibrations, réinitialisation).
 - `src/game/daily.js` : moteur du Défi Quotidien (PRNG déterministe FNV-1a + Mulberry32 par date `YYYY-MM-DD`, participation unique par jour, protection anti-recul d'horloge, séries, partage emoji `🟢`/`🔵`/`⚪`).
+- `src/game/backup.js` : système de transfert manuel de progression par fichier JSON (`mind-lock-pro-backup.json`), validation stricte, résumé d'intégrité, sauvegarde de sécurité pré-importation et retour en arrière (100 % hors-ligne, zéro service cloud).
 - `src/services/audio.js` : synthétiseur Web Audio (8 effets sonores distincts, réglage du volume, verrouillage strict avant interaction utilisateur).
 - `src/game/engine.js` : **intact** (aucune modification par rapport à `main`).
 - Architecture exclusivement PWA (Android, iPhone, iPad, Desktop) : voir [docs/PWA_GUIDE.md](PWA_GUIDE.md).
