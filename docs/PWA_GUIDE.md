@@ -1,4 +1,4 @@
-# Guide d'Architecture & d'Installation PWA — MIND LOCK PRO (`v0.4.0`)
+# Guide d'Architecture & d'Installation PWA — MIND LOCK PRO (`v0.4.1`)
 
 **MIND LOCK PRO** est conçu **exclusivement comme une Progressive Web App (PWA)** multiplateforme (Android, iPhone, iPad et ordinateur), sans aucun code ni empaquetage natif (pas d'APK, pas de TWA, pas de Capacitor, pas de publication App Store / Google Play).
 
@@ -9,11 +9,11 @@
 1. **Zéro dépendance externe** (`package.json`) : HTML5, CSS3 et JavaScript ES6+ natifs (modules ES).
 2. **Manifest Web complet** (`manifest.webmanifest`) :
    - `display: "standalone"` et `orientation: "portrait"`.
-   - `background_color: "#070A14"` et `theme_color: "#070A14"` synchronisés dynamiquement avec le thème sombre/clair via `src/services/theme.js`.
+   - `background_color: "#090B16"` et `theme_color: "#090B16"` synchronisés dynamiquement avec le thème sombre/clair via `src/services/theme.js`.
    - Icônes PNG `192×192` et `512×512` (`any` et `maskable`), icône Apple Touch `180×180` (`index.html`) et icône vectorielle `icon.svg`.
    - Raccourcis d'application (`shortcuts`) vers le Défi Quotidien (`#/daily`) et la grille des 100 niveaux (`#/levels`).
 3. **Fonctionnement 100 % hors ligne** (`sw.js`) :
-   - Stratégie **précache intégral + cache-first** des 35 fichiers de l'application avec `cache: 'reload'` à l'installation pour contourner le cache HTTP navigateur.
+   - Stratégie **précache intégral + cache-first** des 38 fichiers de l'application (39 entrées précachées) avec `cache: 'reload'` à l'installation pour contourner le cache HTTP navigateur.
    - Nettoyage automatique des anciens caches lors de l'événement `activate`.
    - Notification non intrusive (`controllerchange` → toast `updateReady`) lorsqu'une nouvelle version est installée, sans jamais interrompre ni recharger de force une partie en cours.
 4. **Persistance locale durable** (`src/core/storage.js` & `src/main.js`) :
