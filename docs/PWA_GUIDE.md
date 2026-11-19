@@ -1,4 +1,4 @@
-# Guide d'Architecture & d'Installation PWA — MIND LOCK PRO (`v0.5.1`)
+# Guide d'Architecture & d'Installation PWA — MIND LOCK PRO (`v0.5.2`)
 
 **MIND LOCK PRO** est conçu **exclusivement comme une Progressive Web App (PWA)** multiplateforme (Android, iPhone, iPad et ordinateur), sans aucun code ni empaquetage natif (pas d'APK, pas de TWA, pas de Capacitor, pas de publication App Store / Google Play).
 
