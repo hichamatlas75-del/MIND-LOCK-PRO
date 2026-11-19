@@ -10,7 +10,9 @@ export const t = (k, vars = {}) =>
 export function setLang(l) {
   if (!Object.hasOwn(LANGS, l)) return;
   lang = l; storage.set('lang', l);
-  document.documentElement.lang = l; document.documentElement.dir = LANGS[l];
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = l; document.documentElement.dir = LANGS[l];
+  }
 }
 export const getLang = () => lang;
 export const langs = Object.keys(LANGS);

@@ -312,4 +312,19 @@ html[lang="ar"] .elim-title{letter-spacing:0;text-transform:none}
 .elim-btn.pop{animation:pop .22s var(--ease)}
 .elim-btn.is-eliminated{background:transparent;border-style:dashed;border-color:var(--border);color:var(--muted);text-decoration:line-through;opacity:.48;transform:scale(.94)}
 
+/* ---- Sauvegarde et transfert JSON ---- */
+.backup-meta-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.backup-stat{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.backup-stat small{font-size:.72rem;color:var(--muted)}
+.backup-stat strong{font-size:.92rem;font-variant-numeric:tabular-nums;color:var(--text)}
+.backup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.backup-actions .btn{flex:1 1 140px}
+.safety-revert{margin-top:4px;padding-top:8px;border-top:1px solid var(--border)}
+.danger-text{color:var(--err)!important}
+.backup-summary-modal{display:flex;flex-direction:column;gap:6px;text-align:start;font-size:.9rem}
+.backup-summary-modal .summary-warn{color:var(--err);font-weight:600;font-size:.85rem;margin-top:4px}
+.backup-summary-modal .warn-pill{padding:4px 8px;border-radius:8px;background:color-mix(in srgb,var(--cyan) 16%,var(--surface2));border:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);font-size:.82rem;color:var(--cyan)}
+[data-theme="light"] .backup-summary-modal .warn-pill{color:var(--violet);border-color:color-mix(in srgb,var(--violet) 40%,transparent);background:color-mix(in srgb,var(--violet) 12%,var(--surface2))}
+
+
 

@@ -1,12 +1,12 @@
 /* Service Worker – précache + cache-first, fonctionnement hors ligne.
  * IMPORTANT : incrémenter CACHE (= version de package.json) à chaque déploiement, sinon les joueurs
  * gardent l'ancienne version. Un test (tests/pwa.test.js) vérifie cette cohérence et la liste des fichiers. */
-const CACHE = 'mind-lock-pro-v0.4.1';
+const CACHE = 'mind-lock-pro-v0.5.0';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './src/main.js', './src/ui/styles.css',
   './src/core/config.js', './src/core/storage.js', './src/core/events.js', './src/core/settings.js',
-  './src/game/engine.js', './src/game/levels.js', './src/game/progress.js', './src/game/stats.js', './src/game/session.js', './src/game/tutorial.js', './src/game/daily.js',
+  './src/game/engine.js', './src/game/levels.js', './src/game/progress.js', './src/game/stats.js', './src/game/session.js', './src/game/tutorial.js', './src/game/daily.js', './src/game/backup.js',
   './src/services/audio.js', './src/services/theme.js', './src/services/haptics.js',
   './src/i18n/index.js', './src/i18n/fr.js', './src/i18n/en.js', './src/i18n/ar.js',
   './src/ui/icons.js', './src/ui/components.js',

@@ -46,12 +46,13 @@ export function toast(msg) {
 }
 
 /** Boîte de dialogue de confirmation. Résout true/false. */
-export function confirmDialog({ title, text, confirmLabel = t('confirm'), danger = false }) {
+export function confirmDialog({ title, text = '', html = '', confirmLabel = t('confirm'), danger = false }) {
   return new Promise(resolve => {
     const m = document.createElement('div');
     m.className = 'modal';
+    const body = html ? `<div id="modal-desc" class="modal-body">${html}</div>` : `<p id="modal-desc">${esc(text)}</p>`;
     m.innerHTML = `<div class="modal-card" role="alertdialog" aria-modal="true" aria-label="${esc(title)}" aria-describedby="modal-desc">
-      <h2>${esc(title)}</h2><p id="modal-desc">${esc(text)}</p>
+      <h2>${esc(title)}</h2>${body}
       <div class="modal-actions"><button class="btn ghost" data-r="0">${t('cancel')}</button>
       <button class="btn ${danger ? 'danger' : 'primary'}" data-r="1">${esc(confirmLabel)}</button></div></div>`;
     const close = v => { document.removeEventListener('keydown', onKey, true); m.remove(); resolve(v); };
