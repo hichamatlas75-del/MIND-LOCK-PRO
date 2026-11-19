@@ -1,4 +1,4 @@
-export const APP = { name: 'MIND LOCK PRO', version: '0.5.1', storagePrefix: 'mlp:' };
+export const APP = { name: 'MIND LOCK PRO', version: '0.5.2', storagePrefix: 'mlp:' };
 export const TOTAL_LEVELS = 100;
 export const LEVELS_PER_TIER = 25;
 export const DIGITS = 10; // chiffres 0-9

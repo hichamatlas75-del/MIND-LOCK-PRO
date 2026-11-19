@@ -31,17 +31,16 @@ test('CSS anti-blocage : .screen et .scroll s\'étirent sans être tronqués', (
   assert.match(css, /\.scroll\{[^}]*-webkit-overflow-scrolling:touch[^}]*\}/, '.scroll doit avoir momentum touch');
 });
 
-test('CSS anti-blocage : .game et .history ne bloquent pas le défilement sur petits écrans', () => {
-  // .game ne doit PAS avoir overflow: hidden bloquant
-  assert.doesNotMatch(css, /\.game\{[^}]*overflow:hidden[^}]*\}/, '.game ne doit plus avoir overflow: hidden strict');
-  assert.match(css, /\.game\{[^}]*overflow-y:auto[^}]*\}/, '.game doit autoriser overflow-y: auto');
-  assert.match(css, /\.game\{[^}]*-webkit-overflow-scrolling:touch[^}]*\}/, '.game doit avoir momentum scrolling');
-  assert.match(css, /\.game\{[^}]*touch-action:pan-y[^}]*\}/, '.game doit avoir touch-action: pan-y');
+test('CSS jeu : .game et .history gardent le dock et le bouton Valider toujours visibles en bas', () => {
+  // .game est calibré sur 100dvh pour ne jamais repousser le pavé numérique et le bouton valider hors de l'écran
+  assert.match(css, /\.game\{[^}]*height:100dvh[^}]*\}/, '.game doit être calibré sur 100dvh');
+  assert.match(css, /\.game\{[^}]*overflow:hidden[^}]*\}/, '.game ne doit pas déborder pour ne pas chasser le pavé numérique');
 
-  // .history doit avoir momentum touch et overscroll-behavior: contain
+  // .history absorbe les tentatives et défile en interne sans repousser le dock
   assert.match(css, /\.history\{[^}]*-webkit-overflow-scrolling:touch[^}]*\}/, '.history momentum scrolling');
+  assert.match(css, /\.history\{[^}]*overflow-y:auto[^}]*\}/, '.history doit défiler en interne avec overflow-y: auto');
   assert.match(css, /\.history\{[^}]*overscroll-behavior-y:contain[^}]*\}/, '.history overscroll contain');
-  assert.match(css, /\.history\{[^}]*min-height:[^}]*\}/, '.history doit garantir un min-height accessible');
+  assert.match(css, /\.dock\{[^}]*position:sticky[^}]*\}/, '.dock doit être sticky/ancré en bas pour garantir la visibilité de Valider');
 });
 
 test('CSS anti-blocage : .modal et .sheet permettent le défilement quand le contenu dépasse l\'écran', () => {
