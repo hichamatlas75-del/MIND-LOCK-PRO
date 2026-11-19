@@ -2,7 +2,7 @@ import { raw, read } from './helpers/mock-storage.js';
 import test, { beforeEach } from 'node:test'; import assert from 'node:assert/strict';
 import { createGame, submitGuess, useHint } from '../src/game/engine.js';
 import { getLevel } from '../src/game/levels.js';
-import { saveActive, loadActive, validateActive, loadProgress, sanitizeProgress, recordWin, defaultProgress, hasProgress } from '../src/game/progress.js';
+import { saveActive, loadActive, validateActive, loadProgress, sanitizeProgress, recordWin, defaultProgress, hasProgress, sanitizeEliminated, toggleEliminated, hasEliminatedInInput, needsReplaceConfirm } from '../src/game/progress.js';
 import { loadStats } from '../src/game/stats.js';
 import { getSettings } from '../src/core/settings.js';
 import { session } from '../src/game/session.js';
@@ -34,7 +34,7 @@ test('saisie temporaire : restaurée ; invalide → ignorée sans perdre la part
 test('compatibilité : sauvegarde Phase 2 (sans champ input) acceptée', () => {
   const legacy = { level: 3, state: { rules: getLevel(3), secret: [4, 5, 6, 7], guesses: [{ guess: [1, 2, 3, 4], exact: 0, misplaced: 1 }], hintsUsed: [], status: 'playing' }, elapsed: 12 };
   raw('active', legacy); const a = loadActive();
-  assert.ok(a); assert.deepEqual(a.input, []); assert.equal(a.state.guesses.length, 1);
+  assert.ok(a); assert.deepEqual(a.input, []); assert.deepEqual(a.eliminated, []); assert.equal(a.state.guesses.length, 1);
 });
 test('données corrompues : JSON invalide, types inattendus, valeurs nulles', () => {
   for (const bad of ['{not json', '"texte"', '42', 'null', '[]', '[1,2]', 'true', '{}']) {
@@ -92,11 +92,48 @@ test('meilleurs temps et déblocage persistés via la session', () => {
   assert.equal(loadStats().wins, 2);
   session.reset(); assert.equal(loadProgress().unlocked, 1); assert.equal(loadStats().played, 0); assert.equal(read('active'), null);
 });
-test('hasProgress : tentative, indice ou saisie', () => {
+test('hasProgress : tentative, indice, saisie ou chiffre éliminé', () => {
   const g = game();
   assert.equal(hasProgress(snap(g)), false);
   assert.equal(hasProgress(snap(g, { input: [1] })), true);
+  assert.equal(hasProgress(snap(g, { eliminated: [9] })), true);
   assert.equal(hasProgress(snap(submitGuess(g, [5, 6, 7, 8]).state)), true);
   assert.equal(hasProgress(snap(useHint(g).state)), true);
   assert.equal(hasProgress(null), false);
 });
+test('élimination des chiffres : éliminer, restaurer, réinitialiser, sauvegarder et valider tentative avec ou sans doublons', () => {
+  // 1. Éliminer et restaurer
+  let elim = toggleEliminated([], 7);
+  assert.deepEqual(elim, [7]);
+  elim = toggleEliminated(elim, 2);
+  assert.deepEqual(elim, [2, 7]);
+  elim = toggleEliminated(elim, 7); // restaurer 7
+  assert.deepEqual(elim, [2]);
+  elim = []; // réinitialiser
+  assert.deepEqual(elim, []);
+
+  // 2. Nettoyage des valeurs invalides
+  assert.deepEqual(sanitizeEliminated([9, 3, 9, -1, 10, 'x', null, 0]), [0, 3, 9]);
+  assert.deepEqual(sanitizeEliminated('invalid'), []);
+
+  // 3. Détection de chiffre éliminé dans la saisie + validation autorisée (niveau sans doublons et avec doublons)
+  assert.equal(hasEliminatedInInput([1, 5, 8], [0, 5, 9]), true);
+  assert.equal(hasEliminatedInInput([1, 2, 8], [0, 5, 9]), false);
+  const gNoRepeat = game(1, [1, 2, 3, 4]);
+  const res1 = submitGuess(gNoRepeat, [5, 6, 7, 8]); // 5 est éliminé par le joueur mais le moteur autorise la tentative
+  assert.equal(res1.error, undefined);
+  assert.equal(res1.state.guesses.length, 1);
+  const gRepeat = createGame(getLevel(20), Math.random, [1, 1, 2, 3]);
+  assert.equal(gRepeat.rules.allowRepeats, true);
+  const res2 = submitGuess(gRepeat, [9, 9, 1, 2]);
+  assert.equal(res2.error, undefined);
+  assert.equal(res2.state.guesses.length, 1);
+
+  // 4. Sauvegarde et restauration dans mlp:active
+  saveActive(snap(gNoRepeat, { eliminated: [9, 0, 5], input: [5, 2] }));
+  const restored = loadActive();
+  assert.deepEqual(restored.eliminated, [0, 5, 9]);
+  assert.deepEqual(restored.input, [5, 2]);
+  assert.equal(needsReplaceConfirm(restored, 2), true);
+});
+

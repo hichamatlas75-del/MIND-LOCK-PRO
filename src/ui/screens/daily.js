@@ -2,7 +2,7 @@ import { t } from '../../i18n/index.js';
 import { icon } from '../icons.js';
 import { fmtTime, stars, diffBadge, toast, confetti } from '../components.js';
 import { DAILY_RULES } from '../../core/config.js';
-import { deduceEliminatedDigits } from '../../game/levels.js';
+import { toggleEliminated, hasEliminatedInInput } from '../../game/progress.js';
 import { submitGuess, useHint, hintsLeft } from '../../game/engine.js';
 import {
   formatDateKey, recentDateKeys, createDailyGame,
@@ -26,13 +26,14 @@ export function mountDaily(root, ctx) {
   let state = eligibility.allowed ? (resume ? resume.state : createDailyGame(todayKey)) : null;
   let elapsed = resume ? (resume.elapsed || 0) : 0;
   let input = resume && Array.isArray(resume.input) ? [...resume.input] : [];
+  let eliminated = resume && Array.isArray(resume.eliminated) ? [...resume.eliminated] : [];
   let paused = false, msg = '';
   const $ = s => root.querySelector(s);
   const playing = () => !!state && state.status === 'playing' && !paused;
 
   function persistActive() {
     if (!state || state.status !== 'playing') return;
-    store = { ...store, active: { dateKey: todayKey, state, elapsed, input } };
+    store = { ...store, active: { dateKey: todayKey, state, elapsed, input, eliminated } };
     saveDailyStore(store);
   }
 
@@ -92,7 +93,8 @@ export function mountDaily(root, ctx) {
   function renderPlayView() {
     const done = state.status !== 'playing';
     const hinted = new Map(state.hintsUsed.map(h => [h.pos, h.digit]));
-    const elim = deduceEliminatedDigits(state.guesses);
+    const elimSet = new Set(eliminated);
+    const avail = DAILY_RULES.digits - elimSet.size;
     const secretSlots = state.secret.map((d, i) =>
       done ? `<span class="slot revealed ${state.status}" style="--i:${i}">${d}</span>`
       : hinted.has(i) ? `<span class="slot hinted">${hinted.get(i)}</span>`
@@ -118,10 +120,16 @@ export function mountDaily(root, ctx) {
       return `<span class="slot entry-slot ${has ? 'filled' : ''} ${i === input.length ? 'next' : ''}" data-slot="${i}">${has ? input[i] : ghost}</span>`;
     }).join('');
     const full = input.length >= DAILY_RULES.codeLength, on = playing();
+    const elimBtns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => {
+      const isElim = elimSet.has(d);
+      return `<button class="elim-btn ${isElim ? 'is-eliminated' : ''}" data-elim="${d}" aria-pressed="${isElim}" ${!on ? 'disabled' : ''} aria-label="${t('elimDigitLabel', { d })}">${d}</button>`;
+    }).join('');
     const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(d => {
       const dis = !on || full || input.includes(d);
-      return `<button class="key ${elim.has(d) ? 'eliminated' : ''}" data-d="${d}" ${dis ? 'disabled' : ''} aria-label="${d}">${d}</button>`;
+      return `<button class="key ${elimSet.has(d) ? 'eliminated' : ''}" data-d="${d}" ${dis ? 'disabled' : ''} aria-label="${d}">${d}</button>`;
     }).join('');
+    const warnOnly = !msg && hasEliminatedInInput(input, eliminated);
+    const displayMsg = msg || (warnOnly ? t('elimWarn') : '');
 
     root.innerHTML = `
     <main class="screen game daily-game ${paused ? 'is-paused' : ''}">
@@ -145,9 +153,17 @@ export function mountDaily(root, ctx) {
           </div>
         </div>
         <div class="history" id="history" aria-live="polite">${hist}</div>
+        <section class="elim-bar" id="elim-panel" aria-label="${t('elimTitle')}">
+          <div class="elim-head">
+            <span class="elim-title">${t('elimTitle')}</span>
+            <span class="elim-count" id="elim-count">${t('elimAvailable', { n: avail, total: DAILY_RULES.digits })}</span>
+            <button class="elim-reset" id="elim-reset" data-a="elim-reset" ${!on || !elimSet.size ? 'disabled' : ''}>${t('elimReset')}</button>
+          </div>
+          <div class="elim-digits" id="elim-digits">${elimBtns}</div>
+        </section>
       </div>
       <div class="dock">
-        <p class="msg" id="msg" role="alert">${msg}</p>
+        <p class="msg ${warnOnly ? 'warn' : ''}" id="msg" role="alert">${displayMsg}</p>
         <div class="entry" id="entry">${entry}</div>
         <div class="actions">
           <button class="btn ghost sm" data-a="hint" ${!on || hintsLeft(state) <= 0 ? 'disabled' : ''}>${icon('bulb', 16)}<span>${t('hint')}</span><b>${hintsLeft(state)}</b></button>
@@ -184,6 +200,15 @@ export function mountDaily(root, ctx) {
     if (elapsed % 5 === 0) persistActive();
   }, 1000);
 
+  function toggleElim(d) {
+    if (!playing()) return;
+    eliminated = toggleEliminated(eliminated, d, DAILY_RULES.digits);
+    sfx.click(); vibrate(6); persistActive(); render();
+  }
+  function resetElim() {
+    if (!playing() || !eliminated.length) return;
+    eliminated = []; sfx.click(); vibrate(10); persistActive(); render();
+  }
   function press(d) {
     if (!playing() || input.length >= DAILY_RULES.codeLength || input.includes(d)) return;
     input.push(d); msg = ''; sfx.digit(); vibrate(8); persistActive(); render();
@@ -231,11 +256,13 @@ export function mountDaily(root, ctx) {
       return;
     }
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.elim !== undefined) return toggleElim(+b.dataset.elim);
     if (b.dataset.d !== undefined) return press(+b.dataset.d);
     const a = b.dataset.a;
     if (a === 'erase') erase();
     else if (a === 'submit') submit();
     else if (a === 'hint') hint();
+    else if (a === 'elim-reset') resetElim();
     else if (a === 'pause') { paused = true; persistActive(); sfx.click(); render(); }
     else if (a === 'resume') { paused = false; sfx.click(); render(); }
     else if (a === 'share') { sfx.click(); share(); }
